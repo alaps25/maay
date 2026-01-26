@@ -23,7 +23,7 @@ export interface LiveActivityData {
   metadata?: Record<string, any>;
 }
 
-export interface LiveActivityService {
+export interface ILiveActivityService {
   /**
    * Start a new Live Activity
    */
@@ -45,16 +45,5 @@ export interface LiveActivityService {
   isSupported(): boolean;
 }
 
-// Platform-specific implementations
-// Metro (React Native) will automatically resolve .native.ts when importing from .ts
-// Next.js webpack will automatically resolve .web.ts when importing from .ts
-// 
-// This file serves as the main entry point. The bundler will resolve:
-// - Web: LiveActivityService.web.ts (via webpack resolve.extensions)
-// - Native: LiveActivityService.native.ts (via Metro platform extensions)
-
-export type { LiveActivityService, LiveActivityData };
-
-// Default export - bundlers will resolve the correct platform file
-// Metro prioritizes .native.ts, webpack prioritizes .web.ts
+// Re-export the web implementation as default for bundlers
 export { LiveActivityService } from './LiveActivityService.web';
