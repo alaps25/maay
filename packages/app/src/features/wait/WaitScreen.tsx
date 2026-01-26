@@ -1,8 +1,10 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback, TouchEvent } from 'react';
+import React, { useState, useEffect, useRef, useCallback, type TouchEvent } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { X, Check, Trash2 } from 'lucide-react';
 import { OrganicWaves, type BreathPhase } from '../../components/vector/OrganicWaves';
+import { DurationPicker, TimePicker } from '../../components/WheelPicker';
 import { useContractionStore } from '../../stores/contractionStore';
 import { useAppStore } from '../../stores/appStore';
 import { useHaptics } from '../../hooks/useHaptics';
@@ -23,6 +25,336 @@ const HOLD_DURATION = 7000;    // 7 seconds - hold breath
 const EXHALE_DURATION = 8000;  // 8 seconds - breathe out through mouth
 const CYCLE_DURATION = INHALE_DURATION + HOLD_DURATION + EXHALE_DURATION; // 19 seconds total
 
+// Edit Contraction Sheet component
+interface EditSheetProps {
+  contraction: {
+    id: string;
+    startTime: number;
+    duration: number | null;
+  } | null;
+  onClose: () => void;
+  onSave: (id: string, updates: { duration?: number; startTime?: number }) => void;
+  onDelete: (id: string) => void;
+  lineColor: string;
+  isNight: boolean;
+}
+
+function EditContractionSheet({
+  contraction,
+  onClose,
+  onSave,
+  onDelete,
+  lineColor,
+  isNight,
+}: EditSheetProps) {
+  // Initialize state directly from contraction
+  const initialDuration = contraction ? {
+    mins: Math.floor((contraction.duration || 0) / 60),
+    secs: (contraction.duration || 0) % 60,
+  } : { mins: 0, secs: 0 };
+  
+  const initialTime = contraction ? {
+    hours: new Date(contraction.startTime).getHours(),
+    minutes: new Date(contraction.startTime).getMinutes(),
+  } : { hours: 12, minutes: 0 };
+  
+  const [editDuration, setEditDuration] = useState(initialDuration);
+  const [editTime, setEditTime] = useState(initialTime);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  
+  // Update when contraction changes (for when sheet stays open but contraction changes)
+  useEffect(() => {
+    if (contraction) {
+      const durationSecs = contraction.duration || 0;
+      setEditDuration({
+        mins: Math.floor(durationSecs / 60),
+        secs: durationSecs % 60,
+      });
+      
+      const date = new Date(contraction.startTime);
+      setEditTime({
+        hours: date.getHours(),
+        minutes: date.getMinutes(),
+      });
+    }
+  }, [contraction?.id]); // Only re-run if contraction ID changes
+  
+  const handleSave = () => {
+    if (!contraction) return;
+    
+    const newDate = new Date(contraction.startTime);
+    newDate.setHours(editTime.hours);
+    newDate.setMinutes(editTime.minutes);
+    
+    onSave(contraction.id, {
+      duration: editDuration.mins * 60 + editDuration.secs,
+      startTime: newDate.getTime(),
+    });
+    onClose();
+  };
+  
+  if (!contraction) return null;
+  
+  return (
+    <>
+      {/* Backdrop */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        style={{
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          zIndex: 100,
+        }}
+      />
+      
+      {/* Sheet */}
+      <motion.div
+        initial={{ y: '100%' }}
+        animate={{ y: 0 }}
+        exit={{ y: '100%' }}
+        transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+        style={{
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          zIndex: 101,
+          backgroundColor: isNight ? 'rgba(0, 0, 0, 0.85)' : 'rgba(255, 255, 255, 0.85)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          borderTopLeftRadius: 20,
+          borderTopRightRadius: 20,
+        }}
+      >
+        {/* Header */}
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: '14px 16px',
+          }}
+        >
+          {/* X button (cancel) */}
+          <button
+            onClick={onClose}
+            style={{
+              width: 32,
+              height: 32,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: `${lineColor}10`,
+              border: 'none',
+              borderRadius: '50%',
+              cursor: 'pointer',
+              color: lineColor,
+              opacity: 0.6,
+            }}
+            aria-label="Cancel"
+          >
+            <X size={16} strokeWidth={2} />
+          </button>
+          
+          <span
+            style={{
+              fontFamily: 'var(--font-sans, sans-serif)',
+              fontSize: 12,
+              fontWeight: 500,
+              letterSpacing: '0.1em',
+              color: lineColor,
+              opacity: 0.5,
+            }}
+          >
+            EDIT
+          </span>
+          
+          {/* Right side buttons */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {/* Delete button */}
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              style={{
+                width: 32,
+                height: 32,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: `${lineColor}10`,
+                border: 'none',
+                borderRadius: '50%',
+                cursor: 'pointer',
+                color: '#e53935',
+                opacity: 0.8,
+              }}
+              aria-label="Delete"
+            >
+              <Trash2 size={16} strokeWidth={2} />
+            </button>
+            
+            {/* Check button (save) */}
+            <button
+              onClick={handleSave}
+              style={{
+                width: 32,
+                height: 32,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: lineColor,
+                border: 'none',
+                borderRadius: '50%',
+                cursor: 'pointer',
+                color: isNight ? '#000' : '#fff',
+              }}
+              aria-label="Save"
+            >
+              <Check size={16} strokeWidth={2.5} />
+            </button>
+          </div>
+        </div>
+        
+        {/* Delete Confirmation Dialog */}
+        <AnimatePresence>
+          {showDeleteConfirm && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              style={{
+                position: 'absolute',
+                inset: 0,
+                backgroundColor: isNight ? 'rgba(0, 0, 0, 0.9)' : 'rgba(255, 255, 255, 0.95)',
+                borderTopLeftRadius: 20,
+                borderTopRightRadius: 20,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 32,
+                gap: 24,
+                zIndex: 10,
+              }}
+            >
+              <span
+                style={{
+                  fontFamily: 'var(--font-serif, Georgia, serif)',
+                  fontSize: 18,
+                  fontWeight: 400,
+                  color: lineColor,
+                  textAlign: 'center',
+                }}
+              >
+                Delete this recording?
+              </span>
+              
+              <div style={{ display: 'flex', gap: 16 }}>
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  style={{
+                    fontFamily: 'var(--font-sans, sans-serif)',
+                    fontSize: 12,
+                    fontWeight: 500,
+                    letterSpacing: '0.08em',
+                    color: lineColor,
+                    backgroundColor: `${lineColor}10`,
+                    border: 'none',
+                    padding: '12px 24px',
+                    borderRadius: 50,
+                    cursor: 'pointer',
+                  }}
+                >
+                  CANCEL
+                </button>
+                <button
+                  onClick={() => {
+                    if (contraction) {
+                      onDelete(contraction.id);
+                      onClose();
+                    }
+                  }}
+                  style={{
+                    fontFamily: 'var(--font-sans, sans-serif)',
+                    fontSize: 12,
+                    fontWeight: 500,
+                    letterSpacing: '0.08em',
+                    color: '#fff',
+                    backgroundColor: '#e53935',
+                    border: 'none',
+                    padding: '12px 24px',
+                    borderRadius: 50,
+                    cursor: 'pointer',
+                  }}
+                >
+                  DELETE
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        
+        {/* Content - Side by side pickers */}
+        <div style={{ 
+          padding: '24px 16px 36px',
+          display: 'flex',
+          justifyContent: 'center',
+          gap: 32,
+        }}>
+          {/* Start Time Section */}
+          <div style={{ textAlign: 'center' }}>
+            <div
+              style={{
+                fontFamily: 'var(--font-sans, sans-serif)',
+                fontSize: 9,
+                fontWeight: 500,
+                letterSpacing: '0.1em',
+                color: lineColor,
+                opacity: 0.4,
+                marginBottom: 16,
+              }}
+            >
+              TIME
+            </div>
+            <TimePicker
+              hours={editTime.hours}
+              minutes={editTime.minutes}
+              onChange={(hours, minutes) => setEditTime({ hours, minutes })}
+              color={lineColor}
+            />
+          </div>
+          
+          {/* Duration Section */}
+          <div style={{ textAlign: 'center' }}>
+            <div
+              style={{
+                fontFamily: 'var(--font-sans, sans-serif)',
+                fontSize: 9,
+                fontWeight: 500,
+                letterSpacing: '0.1em',
+                color: lineColor,
+                opacity: 0.4,
+                marginBottom: 16,
+              }}
+            >
+              DURATION
+            </div>
+            <DurationPicker
+              minutes={editDuration.mins}
+              seconds={editDuration.secs}
+              onChange={(mins, secs) => setEditDuration({ mins, secs })}
+              color={lineColor}
+            />
+          </div>
+        </div>
+      </motion.div>
+    </>
+  );
+}
+
 /**
  * THE WAIT Screen - Organic UI
  * 
@@ -42,6 +374,7 @@ export function WaitScreen({
   const [breathProgress, setBreathProgress] = useState(0);
   const [dimensions, setDimensions] = useState({ width: 400, height: 600 });
   const [sheetExpanded, setSheetExpanded] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   
   // Bottom sheet drag handling
   const sheetRef = useRef<HTMLDivElement>(null);
@@ -53,7 +386,7 @@ export function WaitScreen({
   const breathCycleStart = useRef<number>(0);
   
   const contractions = useContractionStore((s) => s.contractions);
-  const { startContraction, endContraction } = useContractionStore();
+  const { startContraction, endContraction, updateContraction, deleteContraction } = useContractionStore();
   const { setPhase } = useAppStore();
   const isNight = useAppStore((s) => s.isNightTime);
   const { trigger } = useHaptics();
@@ -614,74 +947,67 @@ export function WaitScreen({
                 </div>
               </div>
               
-              {/* Data rows - height depends on expanded state */}
+              {/* Data rows - swipe to delete, tap to edit */}
               <div
                 style={{
                   flex: sheetExpanded ? 1 : 'none',
-                  maxHeight: sheetExpanded ? 'none' : 125, // ~2.5 rows when collapsed
+                  maxHeight: sheetExpanded ? 'none' : 125,
                   overflowY: 'auto',
                   overflowX: 'hidden',
                 }}
               >
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: '1fr 1fr 1fr',
-                  }}
-                >
-                  {allContractions.map((contraction, idx) => {
-                    const actualIndex = contractions.length - 1 - idx;
-                    const interval = getInterval(actualIndex);
-                    
-                    return (
-                      <React.Fragment key={contraction.id}>
-                        <div style={{ 
-                          padding: '14px 12px', 
-                          textAlign: 'center',
+                {allContractions.map((contraction, idx) => {
+                  const actualIndex = contractions.length - 1 - idx;
+                  const interval = getInterval(actualIndex);
+                  const startDate = new Date(contraction.startTime);
+                  
+                  return (
+                    <div
+                      key={contraction.id}
+                      onClick={() => setEditingId(contraction.id)}
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: '1fr 1fr 1fr',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <div style={{ padding: '14px 12px', textAlign: 'center' }}>
+                        <span style={{
+                          fontFamily: 'var(--font-serif, Georgia, serif)',
+                          fontSize: 18,
+                          fontWeight: 300,
+                          color: lineColor,
                         }}>
-                          <span style={{
-                            fontFamily: 'var(--font-serif, Georgia, serif)',
-                            fontSize: 18,
-                            fontWeight: 300,
-                            color: lineColor,
-                          }}>
-                            {formatDuration(contraction.duration)}
-                          </span>
-                        </div>
-                        <div style={{ 
-                          padding: '14px 12px', 
-                          textAlign: 'center',
+                          {formatDuration(contraction.duration)}
+                        </span>
+                      </div>
+                      <div style={{ padding: '14px 12px', textAlign: 'center' }}>
+                        <span style={{
+                          fontFamily: 'var(--font-serif, Georgia, serif)',
+                          fontSize: 18,
+                          fontWeight: 300,
+                          color: lineColor,
                         }}>
-                          <span style={{
-                            fontFamily: 'var(--font-serif, Georgia, serif)',
-                            fontSize: 18,
-                            fontWeight: 300,
-                            color: lineColor,
-                          }}>
-                            {interval ? `${interval}m` : '—'}
-                          </span>
-                        </div>
-                        <div style={{ 
-                          padding: '14px 12px', 
-                          textAlign: 'center',
+                          {interval ? `${interval}m` : '—'}
+                        </span>
+                      </div>
+                      <div style={{ padding: '14px 12px', textAlign: 'center' }}>
+                        <span style={{
+                          fontFamily: 'var(--font-serif, Georgia, serif)',
+                          fontSize: 18,
+                          fontWeight: 300,
+                          color: lineColor,
+                          opacity: 0.5,
                         }}>
-                          <span style={{
-                            fontFamily: 'var(--font-serif, Georgia, serif)',
-                            fontSize: 18,
-                            fontWeight: 300,
-                            color: lineColor,
-                            opacity: 0.5,
-                          }}>
-                            {new Date(contraction.startTime).toLocaleTimeString([], { 
-                              hour: '2-digit', 
-                              minute: '2-digit' 
-                            })}
-                          </span>
-                        </div>
-                      </React.Fragment>
-                    );
-                  })}
-                </div>
+                          {startDate.toLocaleTimeString([], { 
+                            hour: '2-digit', 
+                            minute: '2-digit' 
+                          })}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
               
               {/* Hint when collapsed */}
@@ -705,6 +1031,20 @@ export function WaitScreen({
               )}
             </div>
           </motion.section>
+        )}
+      </AnimatePresence>
+      
+      {/* Edit Contraction Sheet */}
+      <AnimatePresence>
+        {editingId && (
+          <EditContractionSheet
+            contraction={contractions.find(c => c.id === editingId) || null}
+            onClose={() => setEditingId(null)}
+            onSave={(id, updates) => updateContraction(id, updates)}
+            onDelete={(id) => deleteContraction(id)}
+            lineColor={lineColor}
+            isNight={isNight}
+          />
         )}
       </AnimatePresence>
     </main>

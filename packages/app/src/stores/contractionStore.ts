@@ -13,6 +13,7 @@ interface ContractionState {
   startContraction: () => string;
   endContraction: (notes?: string) => void;
   cancelContraction: () => void;
+  updateContraction: (id: string, updates: { duration?: number; startTime?: number }) => void;
   deleteContraction: (id: string) => void;
   clearAll: () => void;
   
@@ -83,6 +84,26 @@ export const useContractionStore = create<ContractionState>()(
       
       cancelContraction: () => {
         set({ activeContraction: null });
+      },
+      
+      updateContraction: (id, updates) => {
+        set((state) => ({
+          contractions: state.contractions.map((c) => {
+            if (c.id !== id) return c;
+            
+            const newStartTime = updates.startTime ?? c.startTime;
+            const newDuration = updates.duration ?? c.duration;
+            const newEndTime = newDuration !== null ? newStartTime + newDuration * 1000 : c.endTime;
+            
+            return {
+              ...c,
+              startTime: newStartTime,
+              duration: newDuration,
+              endTime: newEndTime,
+              syncStatus: 'pending' as SyncStatus,
+            };
+          }),
+        }));
       },
       
       deleteContraction: (id) => {
