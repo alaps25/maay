@@ -1,10 +1,10 @@
-import type { LiveActivityService, LiveActivityData } from './LiveActivityService';
+import type { ILiveActivityService, LiveActivityData } from './LiveActivityService';
 
 /**
  * Web implementation of Live Activity Service
  * No-op implementation that logs to console
  */
-export const LiveActivityService: LiveActivityService = {
+export const LiveActivityService: ILiveActivityService = {
   async startActivity(data: LiveActivityData): Promise<void> {
     console.log('[LiveActivityService.web] Start Activity:', data);
     // Web doesn't support Live Activities

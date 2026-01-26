@@ -1,5 +1,5 @@
 import { NativeModules } from 'react-native';
-import type { LiveActivityService, LiveActivityData } from './LiveActivityService';
+import type { ILiveActivityService, LiveActivityData } from './LiveActivityService';
 
 /**
  * Native implementation of Live Activity Service
@@ -9,7 +9,7 @@ import type { LiveActivityService, LiveActivityData } from './LiveActivityServic
  */
 const { ActivityKitModule } = NativeModules;
 
-export const LiveActivityService: LiveActivityService = {
+export const LiveActivityService: ILiveActivityService = {
   async startActivity(data: LiveActivityData): Promise<void> {
     if (!ActivityKitModule) {
       throw new Error('ActivityKitModule is not available. Make sure the native module is properly linked.');
