@@ -1,0 +1,48 @@
+{
+  "expo": {
+    "name": "Baby Tracking App",
+    "slug": "baby-tracking-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.baby.trackingapp",
+      "infoPlist": {
+        "NSSupportsLiveActivities": true
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.baby.trackingapp"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-router",
+        {
+          "origin": false
+        }
+      ],
+      "./plugins/withActivityKit"
+    ],
+    "scheme": "baby-tracking",
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

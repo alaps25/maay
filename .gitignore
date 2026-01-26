@@ -1,0 +1,57 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Testing
+coverage/
+
+# Next.js
+.next/
+out/
+build/
+dist/
+
+# Production
+*.log
+*.pid
+*.seed
+*.pid.lock
+
+# Misc
+.DS_Store
+*.pem
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Local env files
+.env*.local
+.env
+
+# Vercel
+.vercel
+
+# Turbo
+.turbo
+
+# Expo
+.expo/
+.expo-shared/
+
+# iOS
+ios/Pods/
+ios/build/
+*.xcworkspace
+!default.xcworkspace
+
+# Android
+android/app/build/
+android/.gradle/
+*.apk
+*.aab
+
+# TypeScript
+*.tsbuildinfo

@@ -1,0 +1,78 @@
+/**
+ * Core Types for App State
+ */
+
+export type AppPhase = 'wait' | 'moment' | 'rhythm';
+export type ThemeMode = 'light' | 'dark' | 'night' | 'auto';
+export type FeedingSide = 'left' | 'right' | 'bottle';
+export type DiaperType = 'wet' | 'dirty' | 'both';
+export type SyncStatus = 'synced' | 'pending' | 'offline' | 'error';
+
+export interface Contraction {
+  id: string;
+  startTime: number;
+  endTime: number | null;
+  duration: number | null; // in seconds
+  notes?: string;
+  syncStatus: SyncStatus;
+}
+
+export interface FeedingSession {
+  id: string;
+  startTime: number;
+  endTime: number | null;
+  duration: number | null; // in seconds
+  side: FeedingSide;
+  amount?: number; // for bottle, in ml/oz
+  notes?: string;
+  syncStatus: SyncStatus;
+}
+
+export interface DiaperEntry {
+  id: string;
+  timestamp: number;
+  type: DiaperType;
+  notes?: string;
+  syncStatus: SyncStatus;
+}
+
+export interface BabyInfo {
+  name?: string;
+  birthTime?: number;
+  birthWeight?: number;
+  birthLength?: number;
+  gender?: 'male' | 'female' | 'other';
+}
+
+export interface HouseholdSync {
+  householdId: string | null;
+  partnerId: string | null;
+  lastSyncTime: number | null;
+  isConnected: boolean;
+}
+
+export interface AppSettings {
+  theme: ThemeMode;
+  locale: string;
+  hapticFeedback: boolean;
+  soundEffects: boolean;
+  notifications: boolean;
+  use24Hour: boolean;
+  measurementUnit: 'metric' | 'imperial';
+}
+
+// 5-1-1 Rule Analysis
+export interface ContractionPattern {
+  averageInterval: number; // in minutes
+  averageDuration: number; // in seconds
+  consistentForMinutes: number;
+  meetsFiveOneOne: boolean;
+}
+
+export interface SyncPayload {
+  type: 'contraction' | 'feeding' | 'diaper' | 'phase_change' | 'baby_info';
+  timestamp: number;
+  data: Contraction | FeedingSession | DiaperEntry | AppPhase | BabyInfo;
+  userId: string;
+  householdId: string;
+}
