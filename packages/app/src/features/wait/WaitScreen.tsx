@@ -520,10 +520,12 @@ export function WaitScreen({
               left: 0,
               right: 0,
               zIndex: 20,
-              backgroundColor: bgColor,
+              backgroundColor: isNight ? 'rgba(30, 30, 30, 0.6)' : 'rgba(255, 255, 255, 0.6)',
+              backdropFilter: 'blur(4px)',
+              WebkitBackdropFilter: 'blur(4px)',
               borderTopLeftRadius: 20,
               borderTopRightRadius: 20,
-              boxShadow: `0 -4px 20px ${lineColor}10`,
+              boxShadow: `0 -4px 20px ${lineColor}15`,
               display: 'flex',
               flexDirection: 'column',
               maxHeight: sheetExpanded ? 'calc(100vh - 100px)' : 'none',
@@ -571,52 +573,41 @@ export function WaitScreen({
                 style={{
                   display: 'grid',
                   gridTemplateColumns: '1fr 1fr 1fr',
-                  gap: 1,
-                  backgroundColor: `${lineColor}10`,
                   flexShrink: 0,
                 }}
               >
-                <div style={{ 
-                  backgroundColor: bgColor, 
-                  textAlign: 'center',
-                }}>
+                <div style={{ textAlign: 'center' }}>
                   <span style={{
                     fontFamily: 'var(--font-sans, sans-serif)',
                     fontSize: 9,
                     fontWeight: 500,
                     letterSpacing: '0.1em',
                     color: lineColor,
-                    opacity: 0.4,
+                    opacity: 0.5,
                   }}>
                     DURATION
                   </span>
                 </div>
-                <div style={{ 
-                  backgroundColor: bgColor, 
-                  textAlign: 'center',
-                }}>
+                <div style={{ textAlign: 'center' }}>
                   <span style={{
                     fontFamily: 'var(--font-sans, sans-serif)',
                     fontSize: 9,
                     fontWeight: 500,
                     letterSpacing: '0.1em',
                     color: lineColor,
-                    opacity: 0.4,
+                    opacity: 0.5,
                   }}>
                     INTERVAL
                   </span>
                 </div>
-                <div style={{ 
-                  backgroundColor: bgColor, 
-                  textAlign: 'center',
-                }}>
+                <div style={{ textAlign: 'center' }}>
                   <span style={{
                     fontFamily: 'var(--font-sans, sans-serif)',
                     fontSize: 9,
                     fontWeight: 500,
                     letterSpacing: '0.1em',
                     color: lineColor,
-                    opacity: 0.4,
+                    opacity: 0.5,
                   }}>
                     TIME
                   </span>
@@ -636,8 +627,6 @@ export function WaitScreen({
                   style={{
                     display: 'grid',
                     gridTemplateColumns: '1fr 1fr 1fr',
-                    gap: 1,
-                    backgroundColor: `${lineColor}10`,
                   }}
                 >
                   {allContractions.map((contraction, idx) => {
@@ -647,7 +636,6 @@ export function WaitScreen({
                     return (
                       <React.Fragment key={contraction.id}>
                         <div style={{ 
-                          backgroundColor: bgColor, 
                           padding: '14px 12px', 
                           textAlign: 'center',
                         }}>
@@ -661,7 +649,6 @@ export function WaitScreen({
                           </span>
                         </div>
                         <div style={{ 
-                          backgroundColor: bgColor, 
                           padding: '14px 12px', 
                           textAlign: 'center',
                         }}>
@@ -675,7 +662,6 @@ export function WaitScreen({
                           </span>
                         </div>
                         <div style={{ 
-                          backgroundColor: bgColor, 
                           padding: '14px 12px', 
                           textAlign: 'center',
                         }}>
