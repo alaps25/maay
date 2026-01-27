@@ -1858,10 +1858,8 @@ export function WaitScreen({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
   
-  // Bottom sheet drag handling
+  // Bottom sheet ref
   const sheetRef = useRef<HTMLDivElement>(null);
-  const dragStartY = useRef<number>(0);
-  const dragStartExpanded = useRef<boolean>(false);
   
   const startTimeRef = useRef<number | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -1954,6 +1952,7 @@ export function WaitScreen({
     } else {
       // Start recording
       setIsRecording(true);
+      setSheetExpanded(false); // Reset to collapsed state for when recording ends
       startTimeRef.current = Date.now();
       breathCycleStart.current = Date.now();
       trigger('tap');
@@ -2000,32 +1999,30 @@ export function WaitScreen({
   // All contractions, newest first
   const allContractions = [...contractions].reverse();
   
-  // Bottom sheet drag handlers
-  const handleSheetTouchStart = useCallback((e: TouchEvent) => {
-    dragStartY.current = e.touches[0].clientY;
-    dragStartExpanded.current = sheetExpanded;
-  }, [sheetExpanded]);
-  
-  const handleSheetTouchEnd = useCallback((e: TouchEvent) => {
-    const deltaY = e.changedTouches[0].clientY - dragStartY.current;
+  // Bottom sheet drag end handler - snap to expanded or collapsed state
+  const handleSheetDragEnd = useCallback((_: unknown, info: { offset: { y: number }; velocity: { y: number } }) => {
     const threshold = 50;
+    const velocityThreshold = 500;
     
-    if (dragStartExpanded.current) {
-      // If expanded, drag down to collapse
-      if (deltaY > threshold) {
-        setSheetExpanded(false);
-      }
+    // Use velocity for quick swipes, position for slow drags
+    if (Math.abs(info.velocity.y) > velocityThreshold) {
+      // Fast swipe - use velocity direction
+      setSheetExpanded(info.velocity.y < 0);
     } else {
-      // If collapsed, drag up to expand
-      if (deltaY < -threshold) {
-        setSheetExpanded(true);
+      // Slow drag - use position
+      if (sheetExpanded) {
+        // If expanded, drag down to collapse
+        if (info.offset.y > threshold) {
+          setSheetExpanded(false);
+        }
+      } else {
+        // If collapsed, drag up to expand
+        if (info.offset.y < -threshold) {
+          setSheetExpanded(true);
+        }
       }
     }
-  }, []);
-  
-  const toggleSheet = useCallback(() => {
-    setSheetExpanded(prev => !prev);
-  }, []);
+  }, [sheetExpanded]);
 
   return (
     <main
@@ -2050,17 +2047,21 @@ export function WaitScreen({
         color={lineColor}
       />
       
-      {/* Top Navigation Pill */}
+      {/* Top Navigation Pill - hides during recording */}
       <motion.nav
         initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={framerSpring}
+        animate={{ 
+          opacity: isRecording ? 0 : 1, 
+          y: isRecording ? -60 : 0 
+        }}
+        transition={{ type: 'spring', damping: 30, stiffness: 300 }}
         style={{
           position: 'relative',
           zIndex: 10,
           display: 'flex',
           justifyContent: 'center',
           padding: '24px 24px 0',
+          pointerEvents: isRecording ? 'none' : 'auto',
         }}
         role="navigation"
         aria-label="Main navigation"
@@ -2127,7 +2128,7 @@ export function WaitScreen({
             exit={{ opacity: 0 }}
             onClick={handleRecordPress}
             aria-label={isRecording 
-              ? `Recording contraction: ${formatTime(elapsedTime)}. ${getBreathText()}. Tap to stop.` 
+              ? `Recording contraction: ${formatTime(elapsedTime)}. ${getBreathText()}. Tap to end.` 
               : 'Tap anywhere to start recording contraction'
             }
             aria-pressed={isRecording}
@@ -2204,7 +2205,7 @@ export function WaitScreen({
                       {getBreathText()}
                     </motion.span>
                     
-                    {/* Tap to stop hint */}
+                    {/* Tap to end hint */}
                     <span
                       style={{
                         fontFamily: 'var(--font-sans, sans-serif)',
@@ -2212,11 +2213,11 @@ export function WaitScreen({
                         fontWeight: 400,
                         letterSpacing: '0.15em',
                         color: lineColor,
-                        opacity: 0.3,
+                        opacity: 0.5,
                         marginTop: 24,
                       }}
                     >
-                      TAP TO STOP
+                      TAP TO END
                     </span>
                   </motion.div>
                 ) : (
@@ -2321,20 +2322,21 @@ export function WaitScreen({
           <motion.section
             ref={sheetRef}
             initial={{ y: '100%' }}
-            animate={{ 
-              y: 0,
-              height: sheetExpanded ? 'calc(100vh - 100px)' : 'auto',
-            }}
+            animate={{ y: 0 }}
             exit={{ y: '100%' }}
-            transition={framerSpring}
-            onTouchStart={handleSheetTouchStart}
-            onTouchEnd={handleSheetTouchEnd}
+            drag="y"
+            dragConstraints={{ top: 0, bottom: 0 }}
+            dragElastic={0.2}
+            onDragEnd={handleSheetDragEnd}
+            transition={{ type: 'spring', damping: 30, stiffness: 300 }}
             style={{
               position: 'absolute',
               bottom: 0,
               left: 0,
               right: 0,
               zIndex: 20,
+              height: sheetExpanded ? '80vh' : '20vh',
+              transition: 'height 0.3s ease-out',
               backgroundColor: isNight ? 'rgba(30, 30, 30, 0.6)' : 'rgba(255, 255, 255, 0.6)',
               backdropFilter: 'blur(4px)',
               WebkitBackdropFilter: 'blur(4px)',
@@ -2343,37 +2345,10 @@ export function WaitScreen({
               boxShadow: `0 -4px 20px ${lineColor}15`,
               display: 'flex',
               flexDirection: 'column',
-              maxHeight: sheetExpanded ? 'calc(100vh - 100px)' : 'none',
             }}
             aria-label="Contractions history"
           >
-            {/* Drag handle */}
-            <div
-              onClick={toggleSheet}
-              role="button"
-              tabIndex={0}
-              style={{
-                padding: '12px 0 8px',
-                margin: 0,
-                background: 'transparent',
-                cursor: 'pointer',
-                width: '100%',
-                flexShrink: 0,
-                display: 'flex',
-                justifyContent: 'center',
-              }}
-              aria-label={sheetExpanded ? 'Collapse history' : 'Expand history'}
-            >
-              <div
-                style={{
-                  width: 36,
-                  height: 4,
-                  backgroundColor: lineColor,
-                  opacity: 0.2,
-                  borderRadius: 2,
-                }}
-              />
-            </div>
+            <SheetDragHandle lineColor={lineColor} />
             
             {/* Header */}
             <div
@@ -2493,11 +2468,10 @@ export function WaitScreen({
                 </div>
               </div>
               
-              {/* Data rows - swipe to delete, tap to edit */}
+              {/* Data rows - tap to edit */}
               <div
                 style={{
-                  flex: sheetExpanded ? 1 : 'none',
-                  maxHeight: sheetExpanded ? 'none' : 125,
+                  flex: 1,
                   overflowY: 'auto',
                   overflowX: 'hidden',
                 }}
