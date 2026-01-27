@@ -4,7 +4,7 @@ import { useRef, useEffect, useCallback, useState } from 'react';
 import { perlin2D } from './noise';
 
 export type WaveState = 'idle' | 'recording';
-export type BreathPhase = 'inhale' | 'hold' | 'exhale';
+export type BreathPhase = 'inhale' | 'exhale';
 
 interface OrganicWavesProps {
   state: WaveState;
@@ -297,8 +297,6 @@ export function OrganicWaves({
         
         if (currentBreathPhase === 'inhale') {
           breathAmount = easeInOut(currentBreathProgress);
-        } else if (currentBreathPhase === 'hold') {
-          breathAmount = 1;
         } else if (currentBreathPhase === 'exhale') {
           breathAmount = 1 - easeInOut(currentBreathProgress);
         }

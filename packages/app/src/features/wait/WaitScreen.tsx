@@ -18,12 +18,12 @@ interface WaitScreenProps {
 
 type Tab = 'contractions' | 'birth';
 
-// Medical standard breathing for labor (4-7-8 technique)
-// Promotes relaxation and pain management during contractions
+// Medical standard breathing for labor (paced breathing technique)
+// Promotes relaxation, oxygen flow, and pelvic floor relaxation during contractions
+// Based on doula/Lamaze recommendations - no breath holding during labor
 const INHALE_DURATION = 4000;  // 4 seconds - breathe in through nose
-const HOLD_DURATION = 7000;    // 7 seconds - hold breath
-const EXHALE_DURATION = 8000;  // 8 seconds - breathe out through mouth
-const CYCLE_DURATION = INHALE_DURATION + HOLD_DURATION + EXHALE_DURATION; // 19 seconds total
+const EXHALE_DURATION = 6000;  // 6 seconds - breathe out through mouth (longer exhale promotes relaxation)
+const CYCLE_DURATION = INHALE_DURATION + EXHALE_DURATION; // 10 seconds total
 
 // Edit Contraction Sheet component
 interface EditSheetProps {
@@ -1844,6 +1844,24 @@ export function WaitScreen({
   const [showWavyControls, setShowWavyControls] = useState(false);
   const [wavyParams, setWavyParams] = useState(wavyBorderParams);
   
+  // Welcome state - check if user has begun using the app
+  // Start with true to avoid hydration mismatch, then check localStorage in useEffect
+  const [hasBegun, setHasBegun] = useState(true);
+  const [isHydrated, setIsHydrated] = useState(false);
+  
+  // Check localStorage after hydration
+  useEffect(() => {
+    const begun = localStorage.getItem('maay-has-begun') === 'true';
+    setHasBegun(begun);
+    setIsHydrated(true);
+  }, []);
+  
+  // Handle BEGIN button click
+  const handleBegin = useCallback(() => {
+    localStorage.setItem('maay-has-begun', 'true');
+    setHasBegun(true);
+  }, []);
+  
   // Key listener for wavy border controls (W key)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -1897,18 +1915,15 @@ export function WaitScreen({
         // Update elapsed time
         setElapsedTime(Math.floor((Date.now() - startTimeRef.current!) / 1000));
         
-        // Update breathing phase
+        // Update breathing phase (simple inhale/exhale cycle - no hold)
         const cycleElapsed = (Date.now() - breathCycleStart.current) % CYCLE_DURATION;
         
         if (cycleElapsed < INHALE_DURATION) {
           setBreathPhase('inhale');
           setBreathProgress(cycleElapsed / INHALE_DURATION);
-        } else if (cycleElapsed < INHALE_DURATION + HOLD_DURATION) {
-          setBreathPhase('hold');
-          setBreathProgress((cycleElapsed - INHALE_DURATION) / HOLD_DURATION);
         } else {
           setBreathPhase('exhale');
-          setBreathProgress((cycleElapsed - INHALE_DURATION - HOLD_DURATION) / EXHALE_DURATION);
+          setBreathProgress((cycleElapsed - INHALE_DURATION) / EXHALE_DURATION);
         }
       }, 50);
     } else {
@@ -1929,8 +1944,6 @@ export function WaitScreen({
     
     if (breathPhase === 'inhale' && breathProgress < 0.05) {
       trigger('inhale');
-    } else if (breathPhase === 'hold' && breathProgress < 0.1) {
-      trigger('hold');
     } else if (breathPhase === 'exhale' && breathProgress < 0.05) {
       trigger('exhale');
     }
@@ -1938,6 +1951,7 @@ export function WaitScreen({
   
   const handleRecordPress = useCallback(() => {
     if (activeTab !== 'contractions') return;
+    if (!hasBegun) return; // Don't allow recording before BEGIN is clicked
     
     if (isRecording) {
       // Stop recording
@@ -1958,7 +1972,7 @@ export function WaitScreen({
       trigger('tap');
       startContraction();
     }
-  }, [isRecording, activeTab, trigger, startContraction, endContraction]);
+  }, [isRecording, activeTab, trigger, startContraction, endContraction, hasBegun]);
   
   const handleBabyArrived = useCallback(() => {
     trigger('success');
@@ -1991,7 +2005,6 @@ export function WaitScreen({
   const getBreathText = () => {
     switch (breathPhase) {
       case 'inhale': return 'breathe in';
-      case 'hold': return 'hold';
       case 'exhale': return 'breathe out';
     }
   };
@@ -2047,12 +2060,12 @@ export function WaitScreen({
         color={lineColor}
       />
       
-      {/* Top Navigation Pill - hides during recording */}
+      {/* Top Navigation Pill - hides during recording and before BEGIN */}
       <motion.nav
         initial={{ opacity: 0, y: -20 }}
         animate={{ 
-          opacity: isRecording ? 0 : 1, 
-          y: isRecording ? -60 : 0 
+          opacity: (isHydrated && !hasBegun) || isRecording ? 0 : 1, 
+          y: (isHydrated && !hasBegun) || isRecording ? -60 : 0 
         }}
         transition={{ type: 'spring', damping: 30, stiffness: 300 }}
         style={{
@@ -2061,7 +2074,7 @@ export function WaitScreen({
           display: 'flex',
           justifyContent: 'center',
           padding: '24px 24px 0',
-          pointerEvents: isRecording ? 'none' : 'auto',
+          pointerEvents: (isHydrated && !hasBegun) || isRecording ? 'none' : 'auto',
         }}
         role="navigation"
         aria-label="Main navigation"
@@ -2129,7 +2142,9 @@ export function WaitScreen({
             onClick={handleRecordPress}
             aria-label={isRecording 
               ? `Recording contraction: ${formatTime(elapsedTime)}. ${getBreathText()}. Tap to end.` 
-              : 'Tap anywhere to start recording contraction'
+              : hasBegun 
+                ? 'Tap anywhere to start recording contraction'
+                : 'Press BEGIN to start using the app'
             }
             aria-pressed={isRecording}
             style={{
@@ -2141,7 +2156,7 @@ export function WaitScreen({
               zIndex: 5,
               background: 'transparent',
               border: 'none',
-              cursor: 'pointer',
+              cursor: hasBegun ? 'pointer' : 'default',
               padding: 0,
               margin: 0,
             }}
@@ -2222,20 +2237,20 @@ export function WaitScreen({
                   </motion.div>
                 ) : (
                   <motion.span
-                    key="idle"
+                    key={(!isHydrated || hasBegun) ? "idle-add" : "idle-maay"}
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.9 }}
                     style={{
                       fontFamily: 'var(--font-sans, sans-serif)',
-                      fontSize: 14,
-                      fontWeight: 400,
+                      fontSize: (isHydrated && !hasBegun) ? 18 : 14,
+                      fontWeight: (isHydrated && !hasBegun) ? 300 : 400,
                       letterSpacing: '0.35em',
                       color: lineColor,
-                      opacity: 0.5,
+                      opacity: (isHydrated && !hasBegun) ? 0.7 : 0.5,
                     }}
                   >
-                    A D D
+                    {(isHydrated && !hasBegun) ? 'M A A Y' : 'A D D'}
                   </motion.span>
                 )}
               </AnimatePresence>
@@ -2316,9 +2331,75 @@ export function WaitScreen({
         )}
       </AnimatePresence>
       
+      {/* Welcome Sheet - shown before user begins (only after hydration) */}
+      <AnimatePresence>
+        {isHydrated && !hasBegun && (
+          <motion.div
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%', opacity: 0 }}
+            transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+            style={{
+              position: 'absolute',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              zIndex: 25,
+              padding: '40px 32px 60px',
+              background: `linear-gradient(to top, ${bgColor} 0%, ${bgColor}f5 60%, ${bgColor}00 100%)`,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 24,
+            }}
+          >
+            {/* Tagline */}
+            <div
+              style={{
+                fontFamily: 'var(--font-sans, sans-serif)',
+                fontSize: 13,
+                fontWeight: 400,
+                letterSpacing: '0.1em',
+                color: lineColor,
+                opacity: 0.5,
+                textAlign: 'center',
+                lineHeight: 1.8,
+                textTransform: 'uppercase',
+              }}
+            >
+              Track each wave
+              <br />
+              breathe through every moment
+            </div>
+            
+            {/* BEGIN button */}
+            <motion.button
+              onClick={handleBegin}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              style={{
+                marginTop: 8,
+                fontFamily: 'var(--font-sans, sans-serif)',
+                fontSize: 13,
+                fontWeight: 600,
+                letterSpacing: '0.1em',
+                color: bgColor,
+                backgroundColor: lineColor,
+                border: 'none',
+                padding: '16px 48px',
+                borderRadius: 50,
+                cursor: 'pointer',
+              }}
+            >
+              BEGIN
+            </motion.button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      
       {/* iOS-style Bottom Sheet - Contractions History (hidden during recording) */}
       <AnimatePresence>
-        {activeTab === 'contractions' && allContractions.length > 0 && !isRecording && (
+        {activeTab === 'contractions' && allContractions.length > 0 && !isRecording && (!isHydrated || hasBegun) && (
           <motion.section
             ref={sheetRef}
             initial={{ y: '100%' }}
