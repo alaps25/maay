@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import type { Contraction, ContractionPattern, SyncStatus } from './types';
+import type { Contraction, ContractionPattern, SyncStatus, ContractionType } from './types';
 
 interface ContractionState {
   // All contractions
@@ -13,6 +13,8 @@ interface ContractionState {
   startContraction: () => string;
   endContraction: (notes?: string) => void;
   cancelContraction: () => void;
+  addContraction: (startTime: number, duration: number) => void;
+  addWaterBroke: (time: number) => void;
   updateContraction: (id: string, updates: { duration?: number; startTime?: number }) => void;
   deleteContraction: (id: string) => void;
   clearAll: () => void;
@@ -84,6 +86,36 @@ export const useContractionStore = create<ContractionState>()(
       
       cancelContraction: () => {
         set({ activeContraction: null });
+      },
+      
+      addContraction: (startTime, duration) => {
+        const id = generateId();
+        const contraction: Contraction = {
+          id,
+          startTime,
+          endTime: startTime + duration * 1000,
+          duration,
+          type: 'contraction',
+          syncStatus: 'pending',
+        };
+        set((state) => ({
+          contractions: [...state.contractions, contraction],
+        }));
+      },
+      
+      addWaterBroke: (time) => {
+        const id = `water_broke_${Date.now()}`;
+        const entry: Contraction = {
+          id,
+          startTime: time,
+          endTime: time,
+          duration: null,
+          type: 'water_broke',
+          syncStatus: 'pending',
+        };
+        set((state) => ({
+          contractions: [...state.contractions, entry],
+        }));
       },
       
       updateContraction: (id, updates) => {

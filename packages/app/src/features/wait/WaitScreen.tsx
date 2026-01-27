@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback, type TouchEvent } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Check, Trash2 } from 'lucide-react';
+import { X, Check, Trash2, MoreVertical, Plus, Droplets } from 'lucide-react';
 import { OrganicWaves, type BreathPhase } from '../../components/vector/OrganicWaves';
 import { DurationPicker, TimePicker } from '../../components/WheelPicker';
 import { useContractionStore } from '../../stores/contractionStore';
@@ -116,6 +116,12 @@ function EditContractionSheet({
         initial={{ y: '100%' }}
         animate={{ y: 0 }}
         exit={{ y: '100%' }}
+        drag="y"
+        dragConstraints={{ top: 0 }}
+        dragElastic={0.2}
+        onDragEnd={(_, info) => {
+          if (info.offset.y > 100) onClose();
+        }}
         transition={{ type: 'spring', damping: 30, stiffness: 300 }}
         style={{
           position: 'fixed',
@@ -123,20 +129,22 @@ function EditContractionSheet({
           left: 0,
           right: 0,
           zIndex: 101,
-          backgroundColor: isNight ? 'rgba(0, 0, 0, 0.85)' : 'rgba(255, 255, 255, 0.85)',
+          backgroundColor: isNight ? 'rgba(0, 0, 0, 0.9)' : 'rgba(255, 255, 255, 0.95)',
           backdropFilter: 'blur(16px)',
           WebkitBackdropFilter: 'blur(16px)',
           borderTopLeftRadius: 20,
           borderTopRightRadius: 20,
         }}
       >
+        <SheetDragHandle lineColor={lineColor} />
+        
         {/* Header */}
         <div
           style={{
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            padding: '14px 16px',
+            padding: '4px 16px 12px',
           }}
         >
           {/* X button (cancel) */}
@@ -167,133 +175,147 @@ function EditContractionSheet({
               fontWeight: 500,
               letterSpacing: '0.1em',
               color: lineColor,
-              opacity: 0.5,
             }}
           >
-            EDIT
+            EDIT CONTRACTION
           </span>
           
-          {/* Right side buttons */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {/* Delete button */}
-            <button
-              onClick={() => setShowDeleteConfirm(true)}
-              style={{
-                width: 32,
-                height: 32,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: `${lineColor}10`,
-                border: 'none',
-                borderRadius: '50%',
-                cursor: 'pointer',
-                color: '#e53935',
-                opacity: 0.8,
-              }}
-              aria-label="Delete"
-            >
-              <Trash2 size={16} strokeWidth={2} />
-            </button>
-            
-            {/* Check button (save) */}
-            <button
-              onClick={handleSave}
-              style={{
-                width: 32,
-                height: 32,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: lineColor,
-                border: 'none',
-                borderRadius: '50%',
-                cursor: 'pointer',
-                color: isNight ? '#000' : '#fff',
-              }}
-              aria-label="Save"
-            >
-              <Check size={16} strokeWidth={2.5} />
-            </button>
-          </div>
+          {/* Check button (save) */}
+          <button
+            onClick={handleSave}
+            style={{
+              width: 32,
+              height: 32,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: lineColor,
+              border: 'none',
+              borderRadius: '50%',
+              cursor: 'pointer',
+              color: isNight ? '#000' : '#fff',
+            }}
+            aria-label="Save"
+          >
+            <Check size={16} strokeWidth={2.5} />
+          </button>
         </div>
         
-        {/* Delete Confirmation Dialog */}
+        {/* Delete Confirmation Sheet */}
         <AnimatePresence>
           {showDeleteConfirm && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              style={{
-                position: 'absolute',
-                inset: 0,
-                backgroundColor: isNight ? 'rgba(0, 0, 0, 0.9)' : 'rgba(255, 255, 255, 0.95)',
-                borderTopLeftRadius: 20,
-                borderTopRightRadius: 20,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: 32,
-                gap: 24,
-                zIndex: 10,
-              }}
-            >
-              <span
+            <>
+              {/* Backdrop */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setShowDeleteConfirm(false)}
                 style={{
-                  fontFamily: 'var(--font-serif, Georgia, serif)',
-                  fontSize: 18,
-                  fontWeight: 400,
-                  color: lineColor,
-                  textAlign: 'center',
+                  position: 'fixed',
+                  inset: 0,
+                  backgroundColor: 'rgba(0,0,0,0.5)',
+                  zIndex: 200,
+                }}
+              />
+              {/* Confirmation Sheet */}
+              <motion.div
+                initial={{ y: '100%' }}
+                animate={{ y: 0 }}
+                exit={{ y: '100%' }}
+                transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+                style={{
+                  position: 'fixed',
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  zIndex: 201,
+                  backgroundColor: isNight ? 'rgba(0, 0, 0, 0.95)' : 'rgba(255, 255, 255, 0.98)',
+                  backdropFilter: 'blur(16px)',
+                  WebkitBackdropFilter: 'blur(16px)',
+                  borderTopLeftRadius: 20,
+                  borderTopRightRadius: 20,
+                  padding: '12px 24px 40px',
                 }}
               >
-                Delete this recording?
-              </span>
-              
-              <div style={{ display: 'flex', gap: 16 }}>
-                <button
-                  onClick={() => setShowDeleteConfirm(false)}
-                  style={{
-                    fontFamily: 'var(--font-sans, sans-serif)',
-                    fontSize: 12,
-                    fontWeight: 500,
-                    letterSpacing: '0.08em',
-                    color: lineColor,
-                    backgroundColor: `${lineColor}10`,
-                    border: 'none',
-                    padding: '12px 24px',
-                    borderRadius: 50,
-                    cursor: 'pointer',
-                  }}
-                >
-                  CANCEL
-                </button>
-                <button
-                  onClick={() => {
-                    if (contraction) {
-                      onDelete(contraction.id);
-                      onClose();
-                    }
-                  }}
-                  style={{
-                    fontFamily: 'var(--font-sans, sans-serif)',
-                    fontSize: 12,
-                    fontWeight: 500,
-                    letterSpacing: '0.08em',
-                    color: '#fff',
-                    backgroundColor: '#e53935',
-                    border: 'none',
-                    padding: '12px 24px',
-                    borderRadius: 50,
-                    cursor: 'pointer',
-                  }}
-                >
-                  DELETE
-                </button>
-              </div>
-            </motion.div>
+                <SheetDragHandle lineColor={lineColor} />
+                
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 20,
+                  paddingTop: 16,
+                }}>
+                  <span
+                    style={{
+                      fontFamily: 'var(--font-sans, sans-serif)',
+                      fontSize: 12,
+                      fontWeight: 500,
+                      letterSpacing: '0.1em',
+                      color: lineColor,
+                    }}
+                  >
+                    DELETE RECORDING
+                  </span>
+                  
+                  <span
+                    style={{
+                      fontFamily: 'var(--font-serif, Georgia, serif)',
+                      fontSize: 16,
+                      fontStyle: 'italic',
+                      color: lineColor,
+                      opacity: 0.6,
+                      textAlign: 'center',
+                    }}
+                  >
+                    This action cannot be undone
+                  </span>
+                  
+                  <div style={{ display: 'flex', gap: 16, marginTop: 8 }}>
+                    <button
+                      onClick={() => setShowDeleteConfirm(false)}
+                      style={{
+                        fontFamily: 'var(--font-sans, sans-serif)',
+                        fontSize: 12,
+                        fontWeight: 500,
+                        letterSpacing: '0.08em',
+                        color: lineColor,
+                        backgroundColor: `${lineColor}10`,
+                        border: 'none',
+                        padding: '12px 24px',
+                        borderRadius: 50,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      CANCEL
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (contraction) {
+                          onDelete(contraction.id);
+                          onClose();
+                        }
+                      }}
+                      style={{
+                        fontFamily: 'var(--font-sans, sans-serif)',
+                        fontSize: 12,
+                        fontWeight: 500,
+                        letterSpacing: '0.08em',
+                        color: '#fff',
+                        backgroundColor: '#e53935',
+                        border: 'none',
+                        padding: '12px 24px',
+                        borderRadius: 50,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      DELETE
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </>
           )}
         </AnimatePresence>
         
@@ -302,7 +324,7 @@ function EditContractionSheet({
           padding: '24px 16px 36px',
           display: 'flex',
           justifyContent: 'center',
-          gap: 32,
+          gap: 48,
         }}>
           {/* Start Time Section */}
           <div style={{ textAlign: 'center' }}>
@@ -350,6 +372,1114 @@ function EditContractionSheet({
             />
           </div>
         </div>
+        
+        {/* Delete Button */}
+        <div style={{ 
+          padding: '8px 16px 36px',
+          display: 'flex',
+          justifyContent: 'center',
+        }}>
+          <button
+            onClick={() => setShowDeleteConfirm(true)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              fontFamily: 'var(--font-sans, sans-serif)',
+              fontSize: 12,
+              fontWeight: 500,
+              letterSpacing: '0.08em',
+              color: '#e53935',
+              backgroundColor: 'transparent',
+              border: 'none',
+              padding: '12px 20px',
+              cursor: 'pointer',
+              opacity: 0.8,
+            }}
+          >
+            <Trash2 size={14} strokeWidth={2} />
+            DELETE RECORDING
+          </button>
+        </div>
+      </motion.div>
+    </>
+  );
+}
+
+// Reusable drag handle component
+function SheetDragHandle({ lineColor }: { lineColor: string }) {
+  return (
+    <div
+      style={{
+        width: 36,
+        height: 4,
+        backgroundColor: lineColor,
+        opacity: 0.2,
+        borderRadius: 2,
+        margin: '12px auto 8px',
+      }}
+    />
+  );
+}
+
+// Wavy border parameters (shared state for controls)
+const wavyBorderParams = {
+  amplitude: 0.6,
+  wavelength: 52, // pixels per wave cycle
+  speed: 0.05,
+  strokeWidth: 1,
+  strokeOpacity: 0.6,
+};
+
+// Animated wavy border for water broke entry
+function WavyBorder({ 
+  width, 
+  height, 
+  color, 
+  radius = 12,
+  params,
+}: { 
+  width: number; 
+  height: number; 
+  color: string;
+  radius?: number;
+  params: typeof wavyBorderParams;
+}) {
+  const [phase, setPhase] = useState(0);
+  
+  useEffect(() => {
+    let animationId: number;
+    const animate = () => {
+      setPhase(p => p + params.speed);
+      animationId = requestAnimationFrame(animate);
+    };
+    animationId = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animationId);
+  }, [params.speed]);
+  
+  // Generate smooth wavy path around rounded rectangle
+  const generateWavyPath = useCallback(() => {
+    const { amplitude, wavelength } = params;
+    const freq = (2 * Math.PI) / wavelength;
+    const points: [number, number][] = [];
+    const inset = amplitude + 1; // Ensure waves don't clip
+    const r = Math.min(radius, (Math.min(width, height) - 2 * inset) / 2);
+    
+    // Calculate perimeter for consistent wave distribution
+    const straightTop = width - 2 * inset - 2 * r;
+    const straightSide = height - 2 * inset - 2 * r;
+    const cornerArc = (Math.PI * r) / 2;
+    
+    // Sample points along the entire perimeter
+    const totalLength = 2 * straightTop + 2 * straightSide + 4 * cornerArc;
+    const numPoints = Math.max(100, Math.ceil(totalLength / 2));
+    
+    for (let i = 0; i <= numPoints; i++) {
+      const t = i / numPoints;
+      const dist = t * totalLength;
+      const wave = Math.sin(phase + dist * freq) * amplitude;
+      
+      let x: number, y: number, nx: number, ny: number;
+      
+      // Top edge
+      if (dist < straightTop) {
+        const localT = dist / straightTop;
+        x = inset + r + localT * straightTop;
+        y = inset;
+        nx = 0; ny = -1;
+      }
+      // Top-right corner
+      else if (dist < straightTop + cornerArc) {
+        const localDist = dist - straightTop;
+        const angle = -Math.PI / 2 + (localDist / cornerArc) * (Math.PI / 2);
+        const cx = width - inset - r;
+        const cy = inset + r;
+        x = cx + Math.cos(angle) * r;
+        y = cy + Math.sin(angle) * r;
+        nx = Math.cos(angle); ny = Math.sin(angle);
+      }
+      // Right edge
+      else if (dist < straightTop + cornerArc + straightSide) {
+        const localDist = dist - straightTop - cornerArc;
+        const localT = localDist / straightSide;
+        x = width - inset;
+        y = inset + r + localT * straightSide;
+        nx = 1; ny = 0;
+      }
+      // Bottom-right corner
+      else if (dist < straightTop + 2 * cornerArc + straightSide) {
+        const localDist = dist - straightTop - cornerArc - straightSide;
+        const angle = 0 + (localDist / cornerArc) * (Math.PI / 2);
+        const cx = width - inset - r;
+        const cy = height - inset - r;
+        x = cx + Math.cos(angle) * r;
+        y = cy + Math.sin(angle) * r;
+        nx = Math.cos(angle); ny = Math.sin(angle);
+      }
+      // Bottom edge
+      else if (dist < 2 * straightTop + 2 * cornerArc + straightSide) {
+        const localDist = dist - straightTop - 2 * cornerArc - straightSide;
+        const localT = localDist / straightTop;
+        x = width - inset - r - localT * straightTop;
+        y = height - inset;
+        nx = 0; ny = 1;
+      }
+      // Bottom-left corner
+      else if (dist < 2 * straightTop + 3 * cornerArc + straightSide) {
+        const localDist = dist - 2 * straightTop - 2 * cornerArc - straightSide;
+        const angle = Math.PI / 2 + (localDist / cornerArc) * (Math.PI / 2);
+        const cx = inset + r;
+        const cy = height - inset - r;
+        x = cx + Math.cos(angle) * r;
+        y = cy + Math.sin(angle) * r;
+        nx = Math.cos(angle); ny = Math.sin(angle);
+      }
+      // Left edge
+      else if (dist < 2 * straightTop + 3 * cornerArc + 2 * straightSide) {
+        const localDist = dist - 2 * straightTop - 3 * cornerArc - straightSide;
+        const localT = localDist / straightSide;
+        x = inset;
+        y = height - inset - r - localT * straightSide;
+        nx = -1; ny = 0;
+      }
+      // Top-left corner
+      else {
+        const localDist = dist - 2 * straightTop - 3 * cornerArc - 2 * straightSide;
+        const angle = Math.PI + (localDist / cornerArc) * (Math.PI / 2);
+        const cx = inset + r;
+        const cy = inset + r;
+        x = cx + Math.cos(angle) * r;
+        y = cy + Math.sin(angle) * r;
+        nx = Math.cos(angle); ny = Math.sin(angle);
+      }
+      
+      // Apply wave displacement along normal
+      points.push([x + nx * wave, y + ny * wave]);
+    }
+    
+    // Build SVG path
+    if (points.length < 2) return '';
+    let path = `M ${points[0][0]} ${points[0][1]}`;
+    for (let i = 1; i < points.length; i++) {
+      path += ` L ${points[i][0]} ${points[i][1]}`;
+    }
+    path += ' Z';
+    
+    return path;
+  }, [width, height, radius, phase, params]);
+  
+  return (
+    <svg
+      style={{
+        position: 'absolute',
+        inset: -4,
+        width: 'calc(100% + 8px)',
+        height: 'calc(100% + 8px)',
+        pointerEvents: 'none',
+        overflow: 'visible',
+      }}
+      viewBox={`0 0 ${width} ${height}`}
+      preserveAspectRatio="none"
+    >
+      <path
+        d={generateWavyPath()}
+        fill="none"
+        stroke={color}
+        strokeWidth={params.strokeWidth}
+        strokeOpacity={params.strokeOpacity}
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+// Wavy border controls panel (press 'W' to toggle)
+function WavyBorderControls({
+  params,
+  setParams,
+  lineColor,
+  isNight,
+}: {
+  params: typeof wavyBorderParams;
+  setParams: (p: typeof wavyBorderParams) => void;
+  lineColor: string;
+  isNight: boolean;
+}) {
+  const controlStyle: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  };
+  
+  const labelStyle: React.CSSProperties = {
+    fontFamily: 'monospace',
+    fontSize: 10,
+    color: lineColor,
+    width: 100,
+  };
+  
+  const inputStyle: React.CSSProperties = {
+    width: 100,
+    accentColor: lineColor,
+  };
+  
+  const valueStyle: React.CSSProperties = {
+    fontFamily: 'monospace',
+    fontSize: 10,
+    color: lineColor,
+    width: 50,
+    textAlign: 'right',
+  };
+  
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 20 }}
+      style={{
+        position: 'fixed',
+        bottom: 20,
+        left: 20,
+        zIndex: 200,
+        backgroundColor: isNight ? 'rgba(0,0,0,0.9)' : 'rgba(255,255,255,0.95)',
+        padding: 16,
+        borderRadius: 12,
+        boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
+        maxHeight: '60vh',
+        overflowY: 'auto',
+      }}
+    >
+      <div style={{ 
+        fontFamily: 'monospace', 
+        fontSize: 11, 
+        color: lineColor, 
+        marginBottom: 12,
+        opacity: 0.5,
+      }}>
+        WAVY BORDER (W to close)
+      </div>
+      
+      <div style={controlStyle}>
+        <span style={labelStyle}>amplitude</span>
+        <input
+          type="range"
+          min="0.5"
+          max="5"
+          step="0.1"
+          value={params.amplitude}
+          onChange={(e) => setParams({ ...params, amplitude: parseFloat(e.target.value) })}
+          style={inputStyle}
+        />
+        <span style={valueStyle}>{params.amplitude.toFixed(1)}</span>
+      </div>
+      
+      <div style={controlStyle}>
+        <span style={labelStyle}>wavelength</span>
+        <input
+          type="range"
+          min="8"
+          max="60"
+          step="1"
+          value={params.wavelength}
+          onChange={(e) => setParams({ ...params, wavelength: parseFloat(e.target.value) })}
+          style={inputStyle}
+        />
+        <span style={valueStyle}>{params.wavelength.toFixed(0)}</span>
+      </div>
+      
+      <div style={controlStyle}>
+        <span style={labelStyle}>speed</span>
+        <input
+          type="range"
+          min="0.01"
+          max="0.15"
+          step="0.005"
+          value={params.speed}
+          onChange={(e) => setParams({ ...params, speed: parseFloat(e.target.value) })}
+          style={inputStyle}
+        />
+        <span style={valueStyle}>{params.speed.toFixed(3)}</span>
+      </div>
+      
+      <div style={controlStyle}>
+        <span style={labelStyle}>strokeWidth</span>
+        <input
+          type="range"
+          min="0.5"
+          max="2.5"
+          step="0.1"
+          value={params.strokeWidth}
+          onChange={(e) => setParams({ ...params, strokeWidth: parseFloat(e.target.value) })}
+          style={inputStyle}
+        />
+        <span style={valueStyle}>{params.strokeWidth.toFixed(1)}</span>
+      </div>
+      
+      <div style={controlStyle}>
+        <span style={labelStyle}>strokeOpacity</span>
+        <input
+          type="range"
+          min="0.1"
+          max="0.6"
+          step="0.02"
+          value={params.strokeOpacity}
+          onChange={(e) => setParams({ ...params, strokeOpacity: parseFloat(e.target.value) })}
+          style={inputStyle}
+        />
+        <span style={valueStyle}>{params.strokeOpacity.toFixed(2)}</span>
+      </div>
+    </motion.div>
+  );
+}
+
+// Menu Sheet - shows options for manual entry
+interface MenuSheetProps {
+  onClose: () => void;
+  onWaterBroke: () => void;
+  onClearAll: () => void;
+  lineColor: string;
+  isNight: boolean;
+}
+
+function MenuSheet({
+  onClose,
+  onWaterBroke,
+  onClearAll,
+  lineColor,
+  isNight,
+}: MenuSheetProps) {
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  
+  return (
+    <>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        style={{
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          zIndex: 100,
+        }}
+      />
+      <motion.div
+        initial={{ y: '100%' }}
+        animate={{ y: 0 }}
+        exit={{ y: '100%' }}
+        drag="y"
+        dragConstraints={{ top: 0 }}
+        dragElastic={0.2}
+        onDragEnd={(_, info) => {
+          if (info.offset.y > 100) onClose();
+        }}
+        transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+        style={{
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          zIndex: 101,
+          backgroundColor: isNight ? 'rgba(0, 0, 0, 0.9)' : 'rgba(255, 255, 255, 0.95)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          borderTopLeftRadius: 20,
+          borderTopRightRadius: 20,
+        }}
+      >
+        <SheetDragHandle lineColor={lineColor} />
+        
+        {/* Clear All Confirmation Sheet */}
+        <AnimatePresence>
+          {showClearConfirm && (
+            <>
+              {/* Backdrop */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setShowClearConfirm(false)}
+                style={{
+                  position: 'fixed',
+                  inset: 0,
+                  backgroundColor: 'rgba(0,0,0,0.5)',
+                  zIndex: 200,
+                }}
+              />
+              {/* Confirmation Sheet */}
+              <motion.div
+                initial={{ y: '100%' }}
+                animate={{ y: 0 }}
+                exit={{ y: '100%' }}
+                transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+                style={{
+                  position: 'fixed',
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  zIndex: 201,
+                  backgroundColor: isNight ? 'rgba(0, 0, 0, 0.95)' : 'rgba(255, 255, 255, 0.98)',
+                  backdropFilter: 'blur(16px)',
+                  WebkitBackdropFilter: 'blur(16px)',
+                  borderTopLeftRadius: 20,
+                  borderTopRightRadius: 20,
+                  padding: '12px 24px 40px',
+                }}
+              >
+                <SheetDragHandle lineColor={lineColor} />
+                
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 20,
+                  paddingTop: 16,
+                }}>
+                  <span
+                    style={{
+                      fontFamily: 'var(--font-sans, sans-serif)',
+                      fontSize: 12,
+                      fontWeight: 500,
+                      letterSpacing: '0.1em',
+                      color: lineColor,
+                    }}
+                  >
+                    START FRESH
+                  </span>
+                  
+                  <span
+                    style={{
+                      fontFamily: 'var(--font-serif, Georgia, serif)',
+                      fontSize: 16,
+                      fontStyle: 'italic',
+                      color: lineColor,
+                      opacity: 0.6,
+                      textAlign: 'center',
+                      maxWidth: 280,
+                    }}
+                  >
+                    This will remove all contractions and start fresh. This cannot be undone.
+                  </span>
+                  
+                  <div style={{ display: 'flex', gap: 16, marginTop: 8 }}>
+                    <button
+                      onClick={() => setShowClearConfirm(false)}
+                      style={{
+                        fontFamily: 'var(--font-sans, sans-serif)',
+                        fontSize: 12,
+                        fontWeight: 500,
+                        letterSpacing: '0.08em',
+                        color: lineColor,
+                        backgroundColor: `${lineColor}10`,
+                        border: 'none',
+                        padding: '12px 24px',
+                        borderRadius: 50,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      CANCEL
+                    </button>
+                    <button
+                      onClick={() => {
+                        onClearAll();
+                        onClose();
+                      }}
+                      style={{
+                        fontFamily: 'var(--font-sans, sans-serif)',
+                        fontSize: 12,
+                        fontWeight: 500,
+                        letterSpacing: '0.08em',
+                        color: '#fff',
+                        backgroundColor: '#e53935',
+                        border: 'none',
+                        padding: '12px 24px',
+                        borderRadius: 50,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      CLEAR ALL
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+        
+        <div style={{ 
+          padding: '20px 16px 40px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 4,
+        }}>
+          {/* Water Broke */}
+          <button
+            onClick={() => {
+              onClose();
+              onWaterBroke();
+            }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 10,
+              padding: '14px 24px',
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+            }}
+          >
+            <Droplets size={16} strokeWidth={2} color={lineColor} style={{ opacity: 0.5 }} />
+            <span
+              style={{
+                fontFamily: 'var(--font-sans, sans-serif)',
+                fontSize: 12,
+                fontWeight: 500,
+                letterSpacing: '0.1em',
+                color: lineColor,
+              }}
+            >
+              WATER BROKE
+            </span>
+          </button>
+          
+          {/* Clear All - destructive action in red */}
+          <button
+            onClick={() => setShowClearConfirm(true)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 10,
+              padding: '14px 24px',
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+            }}
+          >
+            <Trash2 size={16} strokeWidth={2} color="#e53935" style={{ opacity: 0.8 }} />
+            <span
+              style={{
+                fontFamily: 'var(--font-sans, sans-serif)',
+                fontSize: 12,
+                fontWeight: 500,
+                letterSpacing: '0.1em',
+                color: '#e53935',
+              }}
+            >
+              START FRESH
+            </span>
+          </button>
+        </div>
+      </motion.div>
+    </>
+  );
+}
+
+// Add Contraction Sheet - for manual entry
+interface AddSheetProps {
+  onClose: () => void;
+  onAdd: (startTime: number, duration: number) => void;
+  lineColor: string;
+  isNight: boolean;
+}
+
+function AddContractionSheet({
+  onClose,
+  onAdd,
+  lineColor,
+  isNight,
+}: AddSheetProps) {
+  const now = new Date();
+  const [addDuration, setAddDuration] = useState({ mins: 1, secs: 0 });
+  const [addTime, setAddTime] = useState({
+    hours: now.getHours(),
+    minutes: now.getMinutes(),
+  });
+  
+  const handleAdd = () => {
+    const date = new Date();
+    date.setHours(addTime.hours);
+    date.setMinutes(addTime.minutes);
+    date.setSeconds(0);
+    
+    const durationSecs = addDuration.mins * 60 + addDuration.secs;
+    onAdd(date.getTime(), durationSecs);
+    onClose();
+  };
+  
+  return (
+    <>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        style={{
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          zIndex: 100,
+        }}
+      />
+      <motion.div
+        initial={{ y: '100%' }}
+        animate={{ y: 0 }}
+        exit={{ y: '100%' }}
+        drag="y"
+        dragConstraints={{ top: 0 }}
+        dragElastic={0.2}
+        onDragEnd={(_, info) => {
+          if (info.offset.y > 100) onClose();
+        }}
+        transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+        style={{
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          zIndex: 101,
+          backgroundColor: isNight ? 'rgba(0, 0, 0, 0.9)' : 'rgba(255, 255, 255, 0.95)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          borderTopLeftRadius: 20,
+          borderTopRightRadius: 20,
+        }}
+      >
+        <SheetDragHandle lineColor={lineColor} />
+        
+        {/* Header */}
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: '4px 16px 12px',
+          }}
+        >
+          <button
+            onClick={onClose}
+            style={{
+              width: 32,
+              height: 32,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: `${lineColor}10`,
+              border: 'none',
+              borderRadius: '50%',
+              cursor: 'pointer',
+              color: lineColor,
+              opacity: 0.6,
+            }}
+            aria-label="Cancel"
+          >
+            <X size={16} strokeWidth={2} />
+          </button>
+          
+          <span
+            style={{
+              fontFamily: 'var(--font-sans, sans-serif)',
+              fontSize: 12,
+              fontWeight: 500,
+              letterSpacing: '0.1em',
+              color: lineColor,
+            }}
+          >
+            ADD CONTRACTION
+          </span>
+          
+          <button
+            onClick={handleAdd}
+            style={{
+              width: 32,
+              height: 32,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: lineColor,
+              border: 'none',
+              borderRadius: '50%',
+              cursor: 'pointer',
+              color: isNight ? '#000' : '#fff',
+            }}
+            aria-label="Add"
+          >
+            <Check size={16} strokeWidth={2.5} />
+          </button>
+        </div>
+        
+        {/* Content */}
+        <div style={{ 
+          padding: '24px 16px 36px',
+          display: 'flex',
+          justifyContent: 'center',
+          gap: 48,
+        }}>
+          <div style={{ textAlign: 'center' }}>
+            <div
+              style={{
+                fontFamily: 'var(--font-sans, sans-serif)',
+                fontSize: 9,
+                fontWeight: 500,
+                letterSpacing: '0.1em',
+                color: lineColor,
+                opacity: 0.4,
+                marginBottom: 16,
+              }}
+            >
+              TIME
+            </div>
+            <TimePicker
+              hours={addTime.hours}
+              minutes={addTime.minutes}
+              onChange={(hours, minutes) => setAddTime({ hours, minutes })}
+              color={lineColor}
+            />
+          </div>
+          
+          <div style={{ textAlign: 'center' }}>
+            <div
+              style={{
+                fontFamily: 'var(--font-sans, sans-serif)',
+                fontSize: 9,
+                fontWeight: 500,
+                letterSpacing: '0.1em',
+                color: lineColor,
+                opacity: 0.4,
+                marginBottom: 16,
+              }}
+            >
+              DURATION
+            </div>
+            <DurationPicker
+              minutes={addDuration.mins}
+              seconds={addDuration.secs}
+              onChange={(mins, secs) => setAddDuration({ mins, secs })}
+              color={lineColor}
+            />
+          </div>
+        </div>
+      </motion.div>
+    </>
+  );
+}
+
+// Water Broke Sheet - for adding or editing
+interface WaterBrokeSheetProps {
+  onClose: () => void;
+  onConfirm: (time: number) => void;
+  onDelete?: () => void;
+  existingTime?: number; // If provided, we're editing
+  lineColor: string;
+  isNight: boolean;
+}
+
+function WaterBrokeSheet({
+  onClose,
+  onConfirm,
+  onDelete,
+  existingTime,
+  lineColor,
+  isNight,
+}: WaterBrokeSheetProps) {
+  const isEditing = existingTime !== undefined;
+  const initialDate = isEditing ? new Date(existingTime) : new Date();
+  const [time, setTime] = useState({
+    hours: initialDate.getHours(),
+    minutes: initialDate.getMinutes(),
+  });
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  
+  const handleConfirm = () => {
+    const date = new Date();
+    date.setHours(time.hours);
+    date.setMinutes(time.minutes);
+    date.setSeconds(0);
+    onConfirm(date.getTime());
+    onClose();
+  };
+  
+  return (
+    <>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        style={{
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          zIndex: 100,
+        }}
+      />
+      <motion.div
+        initial={{ y: '100%' }}
+        animate={{ y: 0 }}
+        exit={{ y: '100%' }}
+        drag="y"
+        dragConstraints={{ top: 0 }}
+        dragElastic={0.2}
+        onDragEnd={(_, info) => {
+          if (info.offset.y > 100) onClose();
+        }}
+        transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+        style={{
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          zIndex: 101,
+          backgroundColor: isNight ? 'rgba(0, 0, 0, 0.9)' : 'rgba(255, 255, 255, 0.95)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          borderTopLeftRadius: 20,
+          borderTopRightRadius: 20,
+        }}
+      >
+        <SheetDragHandle lineColor={lineColor} />
+        
+        {/* Header */}
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: '4px 16px 12px',
+          }}
+        >
+          <button
+            onClick={onClose}
+            style={{
+              width: 32,
+              height: 32,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: `${lineColor}10`,
+              border: 'none',
+              borderRadius: '50%',
+              cursor: 'pointer',
+              color: lineColor,
+              opacity: 0.6,
+            }}
+            aria-label="Cancel"
+          >
+            <X size={16} strokeWidth={2} />
+          </button>
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Droplets size={14} strokeWidth={2} color={lineColor} />
+            <span
+              style={{
+                fontFamily: 'var(--font-sans, sans-serif)',
+                fontSize: 12,
+                fontWeight: 500,
+                letterSpacing: '0.1em',
+                color: lineColor,
+              }}
+            >
+              {isEditing ? 'EDIT WATER BROKE' : 'WATER BROKE'}
+            </span>
+          </div>
+          
+          <button
+            onClick={handleConfirm}
+            style={{
+              width: 32,
+              height: 32,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: lineColor,
+              border: 'none',
+              borderRadius: '50%',
+              cursor: 'pointer',
+              color: isNight ? '#000' : '#fff',
+            }}
+            aria-label="Confirm"
+          >
+            <Check size={16} strokeWidth={2.5} />
+          </button>
+        </div>
+        
+        {/* Delete Confirmation Sheet */}
+        <AnimatePresence>
+          {showDeleteConfirm && (
+            <>
+              {/* Backdrop */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setShowDeleteConfirm(false)}
+                style={{
+                  position: 'fixed',
+                  inset: 0,
+                  backgroundColor: 'rgba(0,0,0,0.5)',
+                  zIndex: 200,
+                }}
+              />
+              {/* Confirmation Sheet */}
+              <motion.div
+                initial={{ y: '100%' }}
+                animate={{ y: 0 }}
+                exit={{ y: '100%' }}
+                transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+                style={{
+                  position: 'fixed',
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  zIndex: 201,
+                  backgroundColor: isNight ? 'rgba(0, 0, 0, 0.95)' : 'rgba(255, 255, 255, 0.98)',
+                  backdropFilter: 'blur(16px)',
+                  WebkitBackdropFilter: 'blur(16px)',
+                  borderTopLeftRadius: 20,
+                  borderTopRightRadius: 20,
+                  padding: '12px 24px 40px',
+                }}
+              >
+                <SheetDragHandle lineColor={lineColor} />
+                
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 20,
+                  paddingTop: 16,
+                }}>
+                  <span
+                    style={{
+                      fontFamily: 'var(--font-sans, sans-serif)',
+                      fontSize: 12,
+                      fontWeight: 500,
+                      letterSpacing: '0.1em',
+                      color: lineColor,
+                    }}
+                  >
+                    DELETE ENTRY
+                  </span>
+                  
+                  <span
+                    style={{
+                      fontFamily: 'var(--font-serif, Georgia, serif)',
+                      fontSize: 16,
+                      fontStyle: 'italic',
+                      color: lineColor,
+                      opacity: 0.6,
+                      textAlign: 'center',
+                    }}
+                  >
+                    This action cannot be undone
+                  </span>
+                  
+                  <div style={{ display: 'flex', gap: 16, marginTop: 8 }}>
+                    <button
+                      onClick={() => setShowDeleteConfirm(false)}
+                      style={{
+                        fontFamily: 'var(--font-sans, sans-serif)',
+                        fontSize: 12,
+                        fontWeight: 500,
+                        letterSpacing: '0.08em',
+                        color: lineColor,
+                        backgroundColor: `${lineColor}10`,
+                        border: 'none',
+                        padding: '12px 24px',
+                        borderRadius: 50,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      CANCEL
+                    </button>
+                    <button
+                      onClick={() => {
+                        onDelete?.();
+                        onClose();
+                      }}
+                      style={{
+                        fontFamily: 'var(--font-sans, sans-serif)',
+                        fontSize: 12,
+                        fontWeight: 500,
+                        letterSpacing: '0.08em',
+                        color: '#fff',
+                        backgroundColor: '#e53935',
+                        border: 'none',
+                        padding: '12px 24px',
+                        borderRadius: 50,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      DELETE
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+        
+        {/* Content */}
+        <div style={{ 
+          padding: '24px 16px 36px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 24,
+        }}>
+          {/* Prompt text - only when adding */}
+          {!isEditing && (
+            <span
+              style={{
+                fontFamily: 'var(--font-serif, Georgia, serif)',
+                fontSize: 16,
+                fontStyle: 'italic',
+                color: lineColor,
+                opacity: 0.6,
+                textAlign: 'center',
+              }}
+            >
+              When did your water break?
+            </span>
+          )}
+          
+          <TimePicker
+            hours={time.hours}
+            minutes={time.minutes}
+            onChange={(hours, minutes) => setTime({ hours, minutes })}
+            color={lineColor}
+          />
+          
+          {/* Delete Button - only when editing */}
+          {isEditing && onDelete && (
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                fontFamily: 'var(--font-sans, sans-serif)',
+                fontSize: 12,
+                fontWeight: 500,
+                letterSpacing: '0.08em',
+                color: '#e53935',
+                backgroundColor: 'transparent',
+                border: 'none',
+                padding: '12px 20px',
+                cursor: 'pointer',
+                opacity: 0.8,
+                marginTop: 8,
+              }}
+            >
+              <Trash2 size={14} strokeWidth={2} />
+              DELETE ENTRY
+            </button>
+          )}
+        </div>
       </motion.div>
     </>
   );
@@ -375,6 +1505,26 @@ export function WaitScreen({
   const [dimensions, setDimensions] = useState({ width: 400, height: 600 });
   const [sheetExpanded, setSheetExpanded] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingWaterBrokeId, setEditingWaterBrokeId] = useState<string | null>(null);
+  const [showMenu, setShowMenu] = useState(false);
+  const [showAddSheet, setShowAddSheet] = useState(false);
+  const [showWaterBrokeSheet, setShowWaterBrokeSheet] = useState(false);
+  const [showWavyControls, setShowWavyControls] = useState(false);
+  const [wavyParams, setWavyParams] = useState(wavyBorderParams);
+  
+  // Key listener for wavy border controls (W key)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement) return;
+      if (e.metaKey || e.ctrlKey) return;
+      
+      if (e.key.toLowerCase() === 'w') {
+        setShowWavyControls(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
   
   // Bottom sheet drag handling
   const sheetRef = useRef<HTMLDivElement>(null);
@@ -386,7 +1536,7 @@ export function WaitScreen({
   const breathCycleStart = useRef<number>(0);
   
   const contractions = useContractionStore((s) => s.contractions);
-  const { startContraction, endContraction, updateContraction, deleteContraction } = useContractionStore();
+  const { startContraction, endContraction, updateContraction, deleteContraction, addContraction, addWaterBroke, clearAll } = useContractionStore();
   const { setPhase } = useAppStore();
   const isNight = useAppStore((s) => s.isNightTime);
   const { trigger } = useHaptics();
@@ -588,7 +1738,7 @@ export function WaitScreen({
             display: 'flex',
             backgroundColor: lineColor,
             borderRadius: 50,
-            padding: 4,
+            padding: 2,
           }}
         >
           <button
@@ -608,7 +1758,7 @@ export function WaitScreen({
               transition: 'all 0.3s ease',
             }}
           >
-            CONTRACTIONS
+            THE WAIT
           </button>
           <button
             onClick={() => setActiveTab('birth')}
@@ -752,7 +1902,7 @@ export function WaitScreen({
                       opacity: 0.5,
                     }}
                   >
-                    R E C O R D
+                    A D D
                   </motion.span>
                 )}
               </AnimatePresence>
@@ -869,7 +2019,7 @@ export function WaitScreen({
             <button
               onClick={toggleSheet}
               style={{
-                padding: '0px 0 16px',
+                padding: '0px 0px 0px 0px',
                 background: 'transparent',
                 border: 'none',
                 cursor: 'pointer',
@@ -889,6 +2039,67 @@ export function WaitScreen({
                 }}
               />
             </button>
+            
+            {/* Header */}
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '4px 16px 12px',
+              }}
+            >
+              {/* 3-dot menu button */}
+              <button
+                onClick={() => setShowMenu(true)}
+                style={{
+                  width: 32,
+                  height: 32,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: lineColor,
+                  opacity: 0.6,
+                }}
+                aria-label="More options"
+              >
+                <MoreVertical size={16} strokeWidth={2} />
+              </button>
+              
+              <span
+                style={{
+                  fontFamily: 'var(--font-sans, sans-serif)',
+                  fontSize: 12,
+                  fontWeight: 500,
+                  letterSpacing: '0.1em',
+                  color: lineColor,
+                }}
+              >
+                CONTRACTIONS
+              </span>
+              
+              {/* Plus button */}
+              <button
+                onClick={() => setShowAddSheet(true)}
+                style={{
+                  width: 32,
+                  height: 32,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: lineColor,
+                }}
+                aria-label="Add contraction"
+              >
+                <Plus size={16} strokeWidth={2.5} />
+              </button>
+            </div>
             
             {/* Content wrapper */}
             <div
@@ -960,7 +2171,78 @@ export function WaitScreen({
                   const actualIndex = contractions.length - 1 - idx;
                   const interval = getInterval(actualIndex);
                   const startDate = new Date(contraction.startTime);
+                  const isWaterBroke = contraction.type === 'water_broke';
                   
+                  // Special row for water broke with animated wavy border
+                  if (isWaterBroke) {
+                    return (
+                      <div
+                        key={contraction.id}
+                        onClick={() => setEditingWaterBrokeId(contraction.id)}
+                        style={{
+                          margin: '8px 12px',
+                          padding: '12px 0px',
+                          borderRadius: 12,
+                          cursor: 'pointer',
+                          background: `${lineColor}03`,
+                          position: 'relative',
+                          display: 'grid',
+                          gridTemplateColumns: '1fr 1fr 1fr',
+                          alignItems: 'center',
+                        }}
+                      >
+                        {/* Animated wavy border */}
+                        <WavyBorder 
+                          width={dimensions.width - 24} 
+                          height={52} 
+                          color={lineColor}
+                          radius={60}
+                          params={wavyParams}
+                        />
+                        
+                        {/* Icon + Label */}
+                        <div style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center',
+                          gap: 8,
+                        }}>
+                          <Droplets size={16} strokeWidth={2} color={lineColor} style={{ opacity: 0.5 }} />
+                          <span style={{
+                            fontFamily: 'var(--font-serif, Georgia, serif)',
+                            fontSize: 14,
+                            fontWeight: 400,
+                            fontStyle: 'italic',
+                            color: lineColor,
+                            opacity: 0.6,
+                          }}>
+                            Water broke
+                          </span>
+                        </div>
+                        
+                        {/* Empty middle column for alignment */}
+                        <div />
+                        
+                        {/* Time - matching contraction row typography */}
+                        <div style={{ textAlign: 'center' }}>
+                          <span style={{
+                            fontFamily: 'var(--font-serif, Georgia, serif)',
+                            fontSize: 18,
+                            fontWeight: 300,
+                            color: lineColor,
+                            opacity: 0.5,
+                          }}>
+                            {startDate.toLocaleTimeString([], { 
+                              hour: '2-digit', 
+                              minute: '2-digit' 
+                            })}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  }
+                  
+                  // Regular contraction row
                   return (
                     <div
                       key={contraction.id}
@@ -1010,25 +2292,6 @@ export function WaitScreen({
                 })}
               </div>
               
-              {/* Hint when collapsed */}
-              {!sheetExpanded && allContractions.length > 2 && (
-                <div
-                  style={{
-                    textAlign: 'center',
-                    padding: '10px 0 0',
-                  }}
-                >
-                  <span style={{
-                    fontFamily: 'var(--font-sans, sans-serif)',
-                    fontSize: 9,
-                    letterSpacing: '0.1em',
-                    color: lineColor,
-                    opacity: 0.25,
-                  }}>
-                    ↑ PULL UP FOR MORE
-                  </span>
-                </div>
-              )}
             </div>
           </motion.section>
         )}
@@ -1042,6 +2305,75 @@ export function WaitScreen({
             onClose={() => setEditingId(null)}
             onSave={(id, updates) => updateContraction(id, updates)}
             onDelete={(id) => deleteContraction(id)}
+            lineColor={lineColor}
+            isNight={isNight}
+          />
+        )}
+      </AnimatePresence>
+      
+      {/* Menu Sheet */}
+      <AnimatePresence>
+        {showMenu && (
+          <MenuSheet
+            onClose={() => setShowMenu(false)}
+            onWaterBroke={() => setShowWaterBrokeSheet(true)}
+            onClearAll={() => clearAll()}
+            lineColor={lineColor}
+            isNight={isNight}
+          />
+        )}
+      </AnimatePresence>
+      
+      {/* Add Contraction Sheet */}
+      <AnimatePresence>
+        {showAddSheet && (
+          <AddContractionSheet
+            onClose={() => setShowAddSheet(false)}
+            onAdd={(startTime, duration) => addContraction(startTime, duration)}
+            lineColor={lineColor}
+            isNight={isNight}
+          />
+        )}
+      </AnimatePresence>
+      
+      {/* Water Broke Sheet - for adding new */}
+      <AnimatePresence>
+        {showWaterBrokeSheet && (
+          <WaterBrokeSheet
+            onClose={() => setShowWaterBrokeSheet(false)}
+            onConfirm={(time) => addWaterBroke(time)}
+            lineColor={lineColor}
+            isNight={isNight}
+          />
+        )}
+      </AnimatePresence>
+      
+      {/* Water Broke Sheet - for editing existing */}
+      <AnimatePresence>
+        {editingWaterBrokeId && (
+          <WaterBrokeSheet
+            onClose={() => setEditingWaterBrokeId(null)}
+            onConfirm={(time) => {
+              updateContraction(editingWaterBrokeId, { startTime: time });
+              setEditingWaterBrokeId(null);
+            }}
+            onDelete={() => {
+              deleteContraction(editingWaterBrokeId);
+              setEditingWaterBrokeId(null);
+            }}
+            existingTime={contractions.find(c => c.id === editingWaterBrokeId)?.startTime}
+            lineColor={lineColor}
+            isNight={isNight}
+          />
+        )}
+      </AnimatePresence>
+      
+      {/* Wavy Border Controls (press W to toggle) */}
+      <AnimatePresence>
+        {showWavyControls && (
+          <WavyBorderControls
+            params={wavyParams}
+            setParams={setWavyParams}
             lineColor={lineColor}
             isNight={isNight}
           />

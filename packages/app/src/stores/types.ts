@@ -8,11 +8,14 @@ export type FeedingSide = 'left' | 'right' | 'bottle';
 export type DiaperType = 'wet' | 'dirty' | 'both';
 export type SyncStatus = 'synced' | 'pending' | 'offline' | 'error';
 
+export type ContractionType = 'contraction' | 'water_broke';
+
 export interface Contraction {
   id: string;
   startTime: number;
   endTime: number | null;
   duration: number | null; // in seconds
+  type?: ContractionType; // undefined = regular contraction for backwards compatibility
   notes?: string;
   syncStatus: SyncStatus;
 }
