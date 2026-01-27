@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Maay Icon Generator</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { 
+      font-family: system-ui, -apple-system, sans-serif; 
+      padding: 20px; 
+      background: #1a1a1a;
+      color: #fff;
+      margin: 0;
+    }
+    h1 { margin: 0 0 8px; font-weight: 500; }
+    p { margin: 0 0 20px; opacity: 0.6; }
+    .container { display: flex; gap: 40px; }
+    .preview-section { flex-shrink: 0; }
+    svg { border-radius: 24px; box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
+    .controls { 
+      flex: 1;
+      max-width: 400px;
+    }
+    .control-group {
+      background: rgba(255,255,255,0.05);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .control-group h3 {
+      margin: 0 0 16px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      opacity: 0.5;
+    }
+    label { 
+      display: block; 
+      margin-bottom: 16px;
+    }
+    label:last-child { margin-bottom: 0; }
+    .label-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 6px;
+      font-size: 13px;
+    }
+    .label-row span:first-child { opacity: 0.7; }
+    .label-row span:last-child { font-weight: 600; font-variant-numeric: tabular-nums; }
+    input[type="range"] {
+      width: 100%;
+      height: 4px;
+      -webkit-appearance: none;
+      background: rgba(255,255,255,0.2);
+      border-radius: 2px;
+      outline: none;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      background: #fff;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+    .buttons {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+    button { 
+      padding: 12px 20px; 
+      font-size: 13px; 
+      cursor: pointer;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      color: #fff;
+      border-radius: 8px;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+    button:hover {
+      background: rgba(255,255,255,0.2);
+    }
+    button.primary {
+      background: #fff;
+      color: #1a1a1a;
+      border-color: #fff;
+    }
+    textarea { 
+      width: 100%; 
+      height: 200px; 
+      font-family: 'SF Mono', Monaco, monospace; 
+      font-size: 10px;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      padding: 12px;
+      color: rgba(255,255,255,0.7);
+      resize: vertical;
+    }
+    .output-section { margin-top: 20px; }
+    .output-section h3 {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      opacity: 0.5;
+      margin: 0 0 8px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Maay Icon Generator</h1>
+  <p>Generate organic ring icons using the exact same algorithm as the app</p>
+  
+  <div class="buttons">
+    <button onclick="randomizeNoise()" class="primary">Randomize</button>
+    <button onclick="resetDefaults()">Reset Defaults</button>
+    <button onclick="copySVG()">Copy SVG</button>
+  </div>
+  
+  <div class="container">
+    <div class="preview-section">
+      <svg id="icon" width="512" height="512" viewBox="0 0 512 512"></svg>
+      
+      <div class="output-section">
+        <h3>SVG Code</h3>
+        <textarea id="output" readonly></textarea>
+      </div>
+    </div>
+    
+    <div class="controls">
+      <div class="control-group">
+        <h3>Ring Structure</h3>
+        
+        <label>
+          <div class="label-row">
+            <span>Ring Count</span>
+            <span id="lineCount-val">15</span>
+          </div>
+          <input type="range" id="lineCount" min="3" max="25" step="1" value="15" oninput="updateParam(this)">
+        </label>
+        
+        <label>
+          <div class="label-row">
+            <span>Spacing Curve</span>
+            <span id="spacingExponent-val">1.75</span>
+          </div>
+          <input type="range" id="spacingExponent" min="0.5" max="3" step="0.05" value="1.75" oninput="updateParam(this)">
+        </label>
+        
+        <label>
+          <div class="label-row">
+            <span>Min Radius %</span>
+            <span id="minRadiusPercent-val">26</span>
+          </div>
+          <input type="range" id="minRadiusPercent" min="5" max="40" step="1" value="26" oninput="updateParam(this)">
+        </label>
+        
+        <label>
+          <div class="label-row">
+            <span>Max Radius %</span>
+            <span id="maxRadiusPercent-val">79</span>
+          </div>
+          <input type="range" id="maxRadiusPercent" min="50" max="95" step="1" value="79" oninput="updateParam(this)">
+        </label>
+      </div>
+      
+      <div class="control-group">
+        <h3>Organic Shape</h3>
+        
+        <label>
+          <div class="label-row">
+            <span>Inner Tightness</span>
+            <span id="innerTightness-val">0.035</span>
+          </div>
+          <input type="range" id="innerTightness" min="0" max="0.2" step="0.005" value="0.035" oninput="updateParam(this)">
+        </label>
+        
+        <label>
+          <div class="label-row">
+            <span>Outer Looseness</span>
+            <span id="outerLooseness-val">0.20</span>
+          </div>
+          <input type="range" id="outerLooseness" min="0" max="0.5" step="0.01" value="0.2" oninput="updateParam(this)">
+        </label>
+        
+        <label>
+          <div class="label-row">
+            <span>Waviness</span>
+            <span id="waviness-val">1.10</span>
+          </div>
+          <input type="range" id="waviness" min="0.2" max="3" step="0.05" value="1.1" oninput="updateParam(this)">
+        </label>
+      </div>
+      
+      <div class="control-group">
+        <h3>Style</h3>
+        
+        <label>
+          <div class="label-row">
+            <span>Stroke Width</span>
+            <span id="strokeWidth-val">1.20</span>
+          </div>
+          <input type="range" id="strokeWidth" min="0.5" max="3" step="0.1" value="1.2" oninput="updateParam(this)">
+        </label>
+        
+        <label>
+          <div class="label-row">
+            <span>Base Opacity</span>
+            <span id="baseOpacity-val">0.55</span>
+          </div>
+          <input type="range" id="baseOpacity" min="0.2" max="1" step="0.05" value="0.55" oninput="updateParam(this)">
+        </label>
+        
+        <label>
+          <div class="label-row">
+            <span>Opacity Falloff</span>
+            <span id="opacityFalloff-val">0.35</span>
+          </div>
+          <input type="range" id="opacityFalloff" min="0" max="0.5" step="0.05" value="0.35" oninput="updateParam(this)">
+        </label>
+      </div>
+    </div>
+  </div>
+
+<script>
+// Perlin noise implementation
+let permutation = [];
+function initNoise() {
+  permutation = [];
+  for (let i = 0; i < 256; i++) {
+    permutation[i] = Math.floor(Math.random() * 256);
+  }
+}
+initNoise();
+
+function fade(t) { return t * t * t * (t * (t * 6 - 15) + 10); }
+function lerp(a, b, t) { return a + t * (b - a); }
+function grad(hash, x, y) {
+  const h = hash & 3;
+  const u = h < 2 ? x : y;
+  const v = h < 2 ? y : x;
+  return ((h & 1) === 0 ? u : -u) + ((h & 2) === 0 ? v : -v);
+}
+
+function perlin2D(x, y) {
+  const p = [...permutation, ...permutation];
+  const X = Math.floor(x) & 255;
+  const Y = Math.floor(y) & 255;
+  const xf = x - Math.floor(x);
+  const yf = y - Math.floor(y);
+  const u = fade(xf);
+  const v = fade(yf);
+  const aa = p[p[X] + Y];
+  const ab = p[p[X] + Y + 1];
+  const ba = p[p[X + 1] + Y];
+  const bb = p[p[X + 1] + Y + 1];
+  return lerp(
+    lerp(grad(aa, xf, yf), grad(ba, xf - 1, yf), u),
+    lerp(grad(ab, xf, yf - 1), grad(bb, xf - 1, yf - 1), u),
+    v
+  );
+}
+
+// Parameters
+const params = {
+  lineCount: 15,
+  spacingExponent: 1.75,
+  minRadiusPercent: 26,
+  maxRadiusPercent: 79,
+  innerTightness: 0.035,
+  outerLooseness: 0.2,
+  waviness: 1.1,
+  strokeWidth: 1.2,
+  baseOpacity: 0.55,
+  opacityFalloff: 0.35,
+};
+
+const defaults = { ...params };
+
+function updateParam(input) {
+  const key = input.id;
+  const value = parseFloat(input.value);
+  params[key] = value;
+  
+  // Update display
+  const precision = input.step < 1 ? (input.step < 0.01 ? 3 : 2) : 0;
+  document.getElementById(`${key}-val`).textContent = value.toFixed(precision);
+  
+  generate();
+}
+
+function resetDefaults() {
+  Object.assign(params, defaults);
+  Object.keys(params).forEach(key => {
+    const input = document.getElementById(key);
+    if (input) {
+      input.value = params[key];
+      const precision = parseFloat(input.step) < 1 ? (parseFloat(input.step) < 0.01 ? 3 : 2) : 0;
+      document.getElementById(`${key}-val`).textContent = params[key].toFixed(precision);
+    }
+  });
+  generate();
+}
+
+function randomizeNoise() {
+  initNoise();
+  generate();
+}
+
+function generateRing(cx, cy, baseRadius, time, ringIndex, totalRings) {
+  const points = [];
+  const segments = 180;
+  
+  const ringRatio = totalRings > 1 ? ringIndex / (totalRings - 1) : 0;
+  const ringPhase = ringIndex * 17.3;
+  
+  const looseness = params.innerTightness + (params.outerLooseness - params.innerTightness) * ringRatio;
+  const flowSpeed = 0.03;
+  const ringSpeed = flowSpeed * (1 - ringRatio * 0.3);
+  
+  const windAngle = time * 0.03 + Math.sin(time * 0.015) * 0.8;
+  const windStrength = (0.2 + Math.sin(time * 0.1 + ringIndex * 0.5) * 0.15) * (0.5 + ringRatio * 0.5);
+  
+  for (let i = 0; i <= segments; i++) {
+    const t = i / segments;
+    const angle = t * Math.PI * 2;
+    
+    const waveFreq = params.waviness;
+    
+    const flow1 = perlin2D(
+      Math.cos(angle) * (1 + ringRatio) * waveFreq + time * ringSpeed + ringPhase,
+      Math.sin(angle) * (1 + ringRatio) * waveFreq + time * ringSpeed * 0.7
+    );
+    
+    const flow2 = perlin2D(
+      Math.cos(angle + windAngle) * (2 + ringRatio * 2) * waveFreq + time * ringSpeed * 0.3 + ringPhase + 100,
+      Math.sin(angle + windAngle) * (2 + ringRatio * 2) * waveFreq + time * ringSpeed * 0.4 + 50
+    );
+    
+    const flutter = perlin2D(
+      t * (6 + ringRatio * 4) * waveFreq + time * 0.4 + ringPhase,
+      ringIndex * 10 + time * 0.25
+    ) * (0.5 + ringRatio * 0.5);
+    
+    const windInfluence = Math.cos(angle - windAngle) * windStrength;
+    
+    const distortionAmount = baseRadius * looseness;
+    
+    const organicOffset = (
+      flow1 * 0.45 + 
+      flow2 * 0.35 + 
+      flutter * 0.2 +
+      windInfluence * 0.4
+    ) * distortionAmount;
+    
+    const radius = baseRadius + organicOffset;
+    
+    points.push({
+      x: cx + Math.cos(angle) * radius,
+      y: cy + Math.sin(angle) * radius,
+    });
+  }
+  
+  return points;
+}
+
+function pointsToPath(points) {
+  if (points.length < 3) return '';
+  
+  let d = `M ${points[0].x.toFixed(2)} ${points[0].y.toFixed(2)}`;
+  
+  for (let i = 0; i < points.length; i++) {
+    const p0 = points[(i - 1 + points.length) % points.length];
+    const p1 = points[i];
+    const p2 = points[(i + 1) % points.length];
+    const p3 = points[(i + 2) % points.length];
+    
+    const cp1x = p1.x + (p2.x - p0.x) / 6;
+    const cp1y = p1.y + (p2.y - p0.y) / 6;
+    const cp2x = p2.x - (p3.x - p1.x) / 6;
+    const cp2y = p2.y - (p3.y - p1.y) / 6;
+    
+    d += ` C ${cp1x.toFixed(2)} ${cp1y.toFixed(2)}, ${cp2x.toFixed(2)} ${cp2y.toFixed(2)}, ${p2.x.toFixed(2)} ${p2.y.toFixed(2)}`;
+  }
+  
+  return d + ' Z';
+}
+
+function generate() {
+  const size = 512;
+  const cx = size / 2;
+  const cy = size / 2;
+  const time = 0;
+  
+  const minRadius = size * (params.minRadiusPercent / 100);
+  const maxRadius = size * (params.maxRadiusPercent / 100);
+  const radiusRange = maxRadius - minRadius;
+  
+  const ringCount = params.lineCount;
+  const paths = [];
+  
+  for (let i = ringCount - 1; i >= 0; i--) {
+    const ringRatio = ringCount > 1 ? i / (ringCount - 1) : 0;
+    const exponentialRatio = Math.pow(ringRatio, params.spacingExponent);
+    const radius = minRadius + radiusRange * exponentialRatio;
+    
+    const opacity = params.baseOpacity - ringRatio * params.opacityFalloff;
+    const strokeWidth = params.strokeWidth * (1.2 - ringRatio * 0.5);
+    
+    const points = generateRing(cx, cy, radius, time, i, ringCount);
+    const pathD = pointsToPath(points);
+    
+    paths.push({
+      d: pathD,
+      opacity: Math.max(0.05, opacity).toFixed(2),
+      strokeWidth: strokeWidth.toFixed(2)
+    });
+  }
+  
+  let svg = `<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" fill="#FDFBF7"/>
+  <g stroke="#1a1a1a" fill="none" stroke-linecap="round" stroke-linejoin="round">
+`;
+  
+  paths.forEach(p => {
+    svg += `    <path d="${p.d}" stroke-width="${p.strokeWidth}" opacity="${p.opacity}"/>
+`;
+  });
+  
+  svg += `  </g>
+</svg>`;
+  
+  document.getElementById('icon').innerHTML = `
+    <rect width="512" height="512" fill="#FDFBF7"/>
+    <g stroke="#1a1a1a" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      ${paths.map(p => `<path d="${p.d}" stroke-width="${p.strokeWidth}" opacity="${p.opacity}"/>`).join('\n      ')}
+    </g>
+  `;
+  
+  document.getElementById('output').value = svg;
+}
+
+function copySVG() {
+  const textarea = document.getElementById('output');
+  textarea.select();
+  navigator.clipboard.writeText(textarea.value).then(() => {
+    alert('SVG copied to clipboard!');
+  });
+}
+
+generate();
+</script>
+</body>
+</html>

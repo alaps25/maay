@@ -1,22 +1,22 @@
 {
   "expo": {
-    "name": "Baby Tracking App",
-    "slug": "baby-tracking-app",
+    "name": "Maay",
+    "slug": "maay",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#FDFBF7"
     },
     "assetBundlePatterns": [
       "**/*"
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.baby.trackingapp",
+      "bundleIdentifier": "com.maay.app",
       "infoPlist": {
         "NSSupportsLiveActivities": true
       }
@@ -24,9 +24,9 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#FDFBF7"
       },
-      "package": "com.baby.trackingapp"
+      "package": "com.maay.app"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -40,7 +40,7 @@
       ],
       "./plugins/withActivityKit"
     ],
-    "scheme": "baby-tracking",
+    "scheme": "maay",
     "experiments": {
       "typedRoutes": true
     }

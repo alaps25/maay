@@ -19,14 +19,26 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'Baby - Your Journey, Beautifully Guided',
-  description: 'A premium app for tracking your pregnancy and newborn journey. Contraction tracking, feeding logs, and more.',
-  keywords: ['baby', 'pregnancy', 'contractions', 'feeding', 'newborn', 'parenting'],
-  authors: [{ name: 'Baby App' }],
+  title: 'Maay',
+  description: 'A calm, beautiful companion for your journey into parenthood. Track contractions with breathing guidance, log feedings, and navigate each phase with clarity.',
+  keywords: ['pregnancy', 'contractions', 'contraction timer', 'feeding tracker', 'newborn', 'parenting', 'birth', 'labor'],
+  authors: [{ name: 'Maay' }],
+  applicationName: 'Maay',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'Maay',
+  },
   openGraph: {
-    title: 'Baby - Your Journey, Beautifully Guided',
-    description: 'A premium app for tracking your pregnancy and newborn journey.',
+    title: 'Maay',
+    description: 'A calm, beautiful companion for your journey into parenthood.',
     type: 'website',
+    siteName: 'Maay',
+  },
+  twitter: {
+    card: 'summary',
+    title: 'Maay',
+    description: 'A calm, beautiful companion for your journey into parenthood.',
   },
 };
 
@@ -50,8 +62,11 @@ export default function RootLayout({
     <html lang="en" className={`${cormorant.variable} ${inter.variable}`}>
       <head>
         <link rel="manifest" href="/manifest.json" />
+        <link rel="icon" href="/icon-192.png" type="image/png" />
+        <link rel="apple-touch-icon" href="/icon-192.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="Maay" />
       </head>
       <body>
         {/* Skip link for accessibility */}

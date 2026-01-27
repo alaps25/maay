@@ -1,11 +1,11 @@
-# Baby - Your Journey, Beautifully Guided
+# Maay
 
-A premium, organic universal app (Web + Mobile) guiding parents through three distinct phases: **THE WAIT**, **THE MOMENT**, and **THE RHYTHM**.
+A calm, beautiful companion for your journey into parenthood. Guiding you through three distinct phases: **THE WAIT**, **THE MOMENT**, and **THE RHYTHM**.
 
 ## Architecture
 
 ```
-baby-monorepo/
+maay-monorepo/
 ├── apps/
 │   ├── next/                    # Next.js 14+ Web App
 │   └── expo/                    # Expo SDK 50 Mobile App
