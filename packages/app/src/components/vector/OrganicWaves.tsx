@@ -351,21 +351,6 @@ export function OrganicWaves({
         drawCurve(ctx, points, Math.min(1, opacity), blur);
       }
       
-      // Center ripple (idle mode only)
-      if (!isRecording) {
-        const rippleRadius = minRadius * 0.3 + pulseWavePosition * maxRadius * 0.7;
-        const rippleOpacity = (1 - pulseWavePosition) * 0.08 * pulseIntensityMultiplier;
-        
-        if (rippleOpacity > 0.005) {
-          ctx.globalAlpha = rippleOpacity;
-          ctx.lineWidth = 1 + (1 - pulseWavePosition) * 0.5;
-          ctx.beginPath();
-          ctx.arc(cx, cy, rippleRadius, 0, Math.PI * 2);
-          ctx.stroke();
-          ctx.globalAlpha = 1;
-        }
-      }
-      
       animationRef.current = requestAnimationFrame(animate);
     };
     

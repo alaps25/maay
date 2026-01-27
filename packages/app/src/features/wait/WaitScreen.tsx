@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback, type TouchEvent } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Check, Trash2, MoreVertical, Plus, Droplets } from 'lucide-react';
+import { X, Check, Trash2, MoreVertical, Plus, Droplets, Share2, Users } from 'lucide-react';
 import { OrganicWaves, type BreathPhase } from '../../components/vector/OrganicWaves';
 import { DurationPicker, TimePicker } from '../../components/WheelPicker';
 import { useContractionStore } from '../../stores/contractionStore';
@@ -737,6 +737,8 @@ function WavyBorderControls({
 interface MenuSheetProps {
   onClose: () => void;
   onWaterBroke: () => void;
+  onExport: () => void;
+  onPairPartner: () => void;
   onClearAll: () => void;
   lineColor: string;
   isNight: boolean;
@@ -745,6 +747,8 @@ interface MenuSheetProps {
 function MenuSheet({
   onClose,
   onWaterBroke,
+  onExport,
+  onPairPartner,
   onClearAll,
   lineColor,
   isNight,
@@ -946,6 +950,68 @@ function MenuSheet({
             </span>
           </button>
           
+          {/* Export Data */}
+          <button
+            onClick={() => {
+              onClose();
+              onExport();
+            }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 10,
+              padding: '14px 24px',
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+            }}
+          >
+            <Share2 size={16} strokeWidth={2} color={lineColor} style={{ opacity: 0.5 }} />
+            <span
+              style={{
+                fontFamily: 'var(--font-sans, sans-serif)',
+                fontSize: 12,
+                fontWeight: 500,
+                letterSpacing: '0.1em',
+                color: lineColor,
+              }}
+            >
+              EXPORT DATA
+            </span>
+          </button>
+          
+          {/* Pair with Partner */}
+          <button
+            onClick={() => {
+              onClose();
+              onPairPartner();
+            }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 10,
+              padding: '14px 24px',
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+            }}
+          >
+            <Users size={16} strokeWidth={2} color={lineColor} style={{ opacity: 0.5 }} />
+            <span
+              style={{
+                fontFamily: 'var(--font-sans, sans-serif)',
+                fontSize: 12,
+                fontWeight: 500,
+                letterSpacing: '0.1em',
+                color: lineColor,
+              }}
+            >
+              PAIR WITH PARTNER
+            </span>
+          </button>
+          
           {/* Clear All - destructive action in red */}
           <button
             onClick={() => setShowClearConfirm(true)}
@@ -973,6 +1039,271 @@ function MenuSheet({
               START FRESH
             </span>
           </button>
+        </div>
+      </motion.div>
+    </>
+  );
+}
+
+// Export Sheet - for exporting/sharing contraction data
+interface ExportSheetProps {
+  onClose: () => void;
+  contractions: Array<{
+    id: string;
+    startTime: number;
+    duration: number | null;
+    type?: 'contraction' | 'water_broke';
+  }>;
+  lineColor: string;
+  isNight: boolean;
+}
+
+type ExportCount = 10 | 20 | 50 | 'all';
+
+function ExportSheet({
+  onClose,
+  contractions,
+  lineColor,
+  isNight,
+}: ExportSheetProps) {
+  const [selectedCount, setSelectedCount] = useState<ExportCount | null>(null);
+  const [isSharing, setIsSharing] = useState(false);
+  
+  const formatDuration = (seconds: number | null) => {
+    if (!seconds) return '-';
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    if (mins > 0) {
+      return secs > 0 ? `${mins}m ${secs}s` : `${mins}m`;
+    }
+    return `${secs}s`;
+  };
+  
+  const formatTime = (timestamp: number) => {
+    return new Date(timestamp).toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+  };
+  
+  const generateExportText = (count: ExportCount) => {
+    const entriesToExport = count === 'all' 
+      ? contractions 
+      : contractions.slice(0, count);
+    
+    const lines = ['CONTRACTION TRACKING REPORT', ''];
+    lines.push(`Generated: ${new Date().toLocaleString()}`);
+    lines.push(`Total entries: ${entriesToExport.length}`);
+    lines.push('');
+    lines.push('---');
+    lines.push('');
+    
+    entriesToExport.forEach((entry, index) => {
+      if (entry.type === 'water_broke') {
+        lines.push(`${index + 1}. WATER BROKE`);
+        lines.push(`   Time: ${formatTime(entry.startTime)}`);
+      } else {
+        lines.push(`${index + 1}. Contraction`);
+        lines.push(`   Time: ${formatTime(entry.startTime)}`);
+        lines.push(`   Duration: ${formatDuration(entry.duration)}`);
+      }
+      lines.push('');
+    });
+    
+    return lines.join('\n');
+  };
+  
+  const handleExport = async (count: ExportCount) => {
+    setSelectedCount(count);
+    setIsSharing(true);
+    
+    const exportText = generateExportText(count);
+    
+    // Try native share API first
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Contraction Tracking Report',
+          text: exportText,
+        });
+        onClose();
+      } catch (err) {
+        // User cancelled or share failed, try download
+        downloadAsFile(exportText);
+      }
+    } else {
+      // Fallback to download
+      downloadAsFile(exportText);
+    }
+    
+    setIsSharing(false);
+  };
+  
+  const downloadAsFile = (text: string) => {
+    const blob = new Blob([text], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `contractions-${new Date().toISOString().split('T')[0]}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    onClose();
+  };
+  
+  const countOptions: { value: ExportCount; label: string }[] = [
+    { value: 10, label: 'LAST 10 ENTRIES' },
+    { value: 20, label: 'LAST 20 ENTRIES' },
+    { value: 50, label: 'LAST 50 ENTRIES' },
+    { value: 'all', label: `ALL ENTRIES (${contractions.length})` },
+  ];
+  
+  return (
+    <>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        style={{
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          zIndex: 100,
+        }}
+      />
+      <motion.div
+        initial={{ y: '100%' }}
+        animate={{ y: 0 }}
+        exit={{ y: '100%' }}
+        drag="y"
+        dragConstraints={{ top: 0 }}
+        dragElastic={0.2}
+        onDragEnd={(_, info) => {
+          if (info.offset.y > 100) onClose();
+        }}
+        transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+        style={{
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          zIndex: 101,
+          backgroundColor: isNight ? 'rgba(0, 0, 0, 0.95)' : 'rgba(255, 255, 255, 0.98)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          borderTopLeftRadius: 20,
+          borderTopRightRadius: 20,
+        }}
+      >
+        <SheetDragHandle lineColor={lineColor} />
+        
+        {/* Header */}
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: '4px 16px 12px',
+          }}
+        >
+          <button
+            onClick={onClose}
+            style={{
+              width: 32,
+              height: 32,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: `${lineColor}10`,
+              border: 'none',
+              borderRadius: '50%',
+              cursor: 'pointer',
+              color: lineColor,
+              opacity: 0.6,
+            }}
+            aria-label="Cancel"
+          >
+            <X size={16} strokeWidth={2} />
+          </button>
+          
+          <span
+            style={{
+              fontFamily: 'var(--font-sans, sans-serif)',
+              fontSize: 12,
+              fontWeight: 500,
+              letterSpacing: '0.1em',
+              color: lineColor,
+            }}
+          >
+            EXPORT DATA
+          </span>
+          
+          {/* Empty space for balance */}
+          <div style={{ width: 32 }} />
+        </div>
+        
+        {/* Subtitle */}
+        <div style={{ textAlign: 'center', marginBottom: 16 }}>
+          <span
+            style={{
+              fontFamily: 'var(--font-serif, Georgia, serif)',
+              fontSize: 16,
+              fontStyle: 'italic',
+              color: lineColor,
+              opacity: 0.6,
+            }}
+          >
+            Choose how many entries to export
+          </span>
+        </div>
+        
+        {/* Options - only show options that are possible */}
+        <div style={{ 
+          padding: '8px 16px 40px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 8,
+        }}>
+          {countOptions
+            .filter((option) => option.value === 'all' || contractions.length >= option.value)
+            .map((option) => (
+            <button
+              key={option.value}
+              onClick={() => handleExport(option.value)}
+              disabled={isSharing}
+              style={{
+                width: '100%',
+                maxWidth: 280,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 10,
+                padding: '14px 24px',
+                background: selectedCount === option.value ? `${lineColor}15` : `${lineColor}08`,
+                border: 'none',
+                borderRadius: 12,
+                cursor: 'pointer',
+              }}
+            >
+              <span
+                style={{
+                  fontFamily: 'var(--font-sans, sans-serif)',
+                  fontSize: 12,
+                  fontWeight: 500,
+                  letterSpacing: '0.1em',
+                  color: lineColor,
+                }}
+              >
+                {option.label}
+              </span>
+            </button>
+          ))}
         </div>
       </motion.div>
     </>
@@ -1509,6 +1840,7 @@ export function WaitScreen({
   const [showMenu, setShowMenu] = useState(false);
   const [showAddSheet, setShowAddSheet] = useState(false);
   const [showWaterBrokeSheet, setShowWaterBrokeSheet] = useState(false);
+  const [showExportSheet, setShowExportSheet] = useState(false);
   const [showWavyControls, setShowWavyControls] = useState(false);
   const [wavyParams, setWavyParams] = useState(wavyBorderParams);
   
@@ -1983,9 +2315,9 @@ export function WaitScreen({
         )}
       </AnimatePresence>
       
-      {/* iOS-style Bottom Sheet - Contractions History */}
+      {/* iOS-style Bottom Sheet - Contractions History (hidden during recording) */}
       <AnimatePresence>
-        {activeTab === 'contractions' && allContractions.length > 0 && (
+        {activeTab === 'contractions' && allContractions.length > 0 && !isRecording && (
           <motion.section
             ref={sheetRef}
             initial={{ y: '100%' }}
@@ -2016,15 +2348,19 @@ export function WaitScreen({
             aria-label="Contractions history"
           >
             {/* Drag handle */}
-            <button
+            <div
               onClick={toggleSheet}
+              role="button"
+              tabIndex={0}
               style={{
-                padding: '0px 0px 0px 0px',
+                padding: '12px 0 8px',
+                margin: 0,
                 background: 'transparent',
-                border: 'none',
                 cursor: 'pointer',
                 width: '100%',
                 flexShrink: 0,
+                display: 'flex',
+                justifyContent: 'center',
               }}
               aria-label={sheetExpanded ? 'Collapse history' : 'Expand history'}
             >
@@ -2035,10 +2371,9 @@ export function WaitScreen({
                   backgroundColor: lineColor,
                   opacity: 0.2,
                   borderRadius: 2,
-                  margin: '0 auto',
                 }}
               />
-            </button>
+            </div>
             
             {/* Header */}
             <div
@@ -2317,7 +2652,24 @@ export function WaitScreen({
           <MenuSheet
             onClose={() => setShowMenu(false)}
             onWaterBroke={() => setShowWaterBrokeSheet(true)}
+            onExport={() => setShowExportSheet(true)}
+            onPairPartner={() => {
+              // TODO: Implement pairing feature
+              console.log('Pair with partner - coming soon');
+            }}
             onClearAll={() => clearAll()}
+            lineColor={lineColor}
+            isNight={isNight}
+          />
+        )}
+      </AnimatePresence>
+      
+      {/* Export Sheet */}
+      <AnimatePresence>
+        {showExportSheet && (
+          <ExportSheet
+            onClose={() => setShowExportSheet(false)}
+            contractions={allContractions}
             lineColor={lineColor}
             isNight={isNight}
           />
