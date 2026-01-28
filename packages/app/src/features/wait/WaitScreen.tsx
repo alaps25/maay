@@ -962,7 +962,30 @@ type AboutSubPage = 'main' | 'howItWorks' | 'impressum' | 'privacy' | 'terms' | 
 
 function AboutSheet({ onClose, lineColor, isNight }: AboutSheetProps) {
   const [activePage, setActivePage] = useState<AboutSubPage>('main');
+  const scrollRef = useRef<HTMLDivElement>(null);
   const bgColor = isNight ? 'rgba(0, 0, 0, 0.95)' : 'rgba(255, 255, 255, 0.98)';
+  
+  // Reset scroll position when page changes
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = 0;
+    }
+  }, [activePage]);
+  
+  // Share the app
+  const handleShare = useCallback(() => {
+    const shareData = {
+      title: 'Maay',
+      text: 'A calming companion for tracking contractions during labor',
+      url: 'https://maay.app',
+    };
+    
+    if (navigator.share) {
+      navigator.share(shareData);
+    } else if (navigator.clipboard) {
+      navigator.clipboard.writeText(`${shareData.text} - ${shareData.url}`);
+    }
+  }, []);
   
   const menuItems: { id: AboutSubPage; label: string; icon: React.ReactNode }[] = [
     { id: 'howItWorks', label: 'How It Works', icon: <Sparkles size={18} /> },
@@ -1257,13 +1280,13 @@ function AboutSheet({ onClose, lineColor, isNight }: AboutSheetProps) {
   
   const getPageTitle = () => {
     switch (activePage) {
-      case 'howItWorks': return 'How It Works';
-      case 'impressum': return 'Legal Notice';
-      case 'privacy': return 'Privacy Policy';
-      case 'terms': return 'Terms of Service';
-      case 'medical': return 'Medical Disclaimer';
-      case 'gdpr': return 'Your Data';
-      default: return 'about maay';
+      case 'howItWorks': return 'HOW IT WORKS';
+      case 'impressum': return 'LEGAL NOTICE';
+      case 'privacy': return 'PRIVACY POLICY';
+      case 'terms': return 'TERMS OF SERVICE';
+      case 'medical': return 'MEDICAL DISCLAIMER';
+      case 'gdpr': return 'YOUR DATA';
+      default: return 'ABOUT MAAY';
     }
   };
   
@@ -1314,31 +1337,51 @@ function AboutSheet({ onClose, lineColor, isNight }: AboutSheetProps) {
         <div style={{
           display: 'flex',
           alignItems: 'center',
-          padding: '4px 16px 16px',
+          padding: '4px 20px 12px',
           borderBottom: `1px solid ${lineColor}10`,
         }}>
+          {/* Left button - Close or Back */}
           {activePage !== 'main' ? (
             <button
               onClick={() => setActivePage('main')}
               style={{
+                width: 32,
+                height: 32,
                 display: 'flex',
                 alignItems: 'center',
-                gap: 4,
+                justifyContent: 'center',
                 background: 'transparent',
                 border: 'none',
                 cursor: 'pointer',
                 color: lineColor,
                 opacity: 0.6,
-                padding: '8px 0',
               }}
+              aria-label="Back"
             >
               <ChevronLeft size={18} />
-              <span style={{ fontFamily: 'var(--font-sans, sans-serif)', fontSize: 13 }}>Back</span>
             </button>
           ) : (
-            <div style={{ width: 60 }} />
+            <button
+              onClick={onClose}
+              style={{
+                width: 32,
+                height: 32,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                color: lineColor,
+                opacity: 0.6,
+              }}
+              aria-label="Close"
+            >
+              <X size={18} strokeWidth={2} />
+            </button>
           )}
           
+          {/* Title */}
           <span style={{
             flex: 1,
             textAlign: 'center',
@@ -1347,16 +1390,43 @@ function AboutSheet({ onClose, lineColor, isNight }: AboutSheetProps) {
             fontWeight: 500,
             letterSpacing: '0.1em',
             color: lineColor,
-            textTransform: activePage === 'main' ? 'lowercase' : 'uppercase',
           }}>
             {getPageTitle()}
           </span>
           
-          <div style={{ width: 60 }} />
+          {/* Right button - Share (only on main page) */}
+          {activePage === 'main' ? (
+            <button
+              onClick={handleShare}
+              style={{
+                width: 32,
+                height: 32,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                color: lineColor,
+              }}
+              aria-label="Share app"
+            >
+              <Share size={16} strokeWidth={2} />
+            </button>
+          ) : (
+            <div style={{ width: 32 }} />
+          )}
         </div>
         
         {/* Content */}
-        <div style={{ flex: 1, overflowY: 'auto', paddingTop: 20 }}>
+        <div 
+          ref={scrollRef}
+          style={{ 
+            flex: 1, 
+            overflowY: 'auto', 
+            paddingTop: 20,
+          }}
+        >
           <AnimatePresence mode="wait">
             <motion.div
               key={activePage}

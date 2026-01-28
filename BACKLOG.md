@@ -29,6 +29,14 @@ This document tracks improvements needed before public release.
 
 ## Priority 3: Medium
 
+- [ ] **Code Cleanup & Components**
+  - [ ] Extract reusable `SheetHeader` component from sheets
+  - [ ] Extract reusable `SheetContainer` component (backdrop + motion.div pattern)
+  - [ ] Create shared button components (primary, secondary, icon buttons)
+  - [ ] Move sheet components to separate files
+  - [ ] Reduce WaitScreen.tsx file size (currently 4000+ lines)
+  - [ ] Explore sheet libraries (vaul, react-modal-sheet) for better scroll + drag handling
+
 - [ ] **PWA Enhancements**
   - [ ] Service worker for offline caching
   - [ ] Push notifications for reminders
