@@ -2024,7 +2024,7 @@ function AddContractionSheet({
               color: lineColor,
             }}
           >
-            ADD CONTRACTION
+            RECORD CONTRACTION
           </span>
           
           <button
@@ -3054,7 +3054,7 @@ export function WaitScreen({
                 textTransform: 'uppercase',
               }}
             >
-              Track each wave
+              Track contractions
               <br />
               breathe through every moment
             </div>
