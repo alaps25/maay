@@ -18,6 +18,7 @@ interface ContractionState {
   updateContraction: (id: string, updates: { duration?: number; startTime?: number }) => void;
   deleteContraction: (id: string) => void;
   clearAll: () => void;
+  setContractions: (contractions: Contraction[]) => void;
   
   // Sync status updates
   markSynced: (id: string) => void;
@@ -146,6 +147,10 @@ export const useContractionStore = create<ContractionState>()(
       
       clearAll: () => {
         set({ contractions: [], activeContraction: null });
+      },
+      
+      setContractions: (contractions) => {
+        set({ contractions });
       },
       
       markSynced: (id) => {
