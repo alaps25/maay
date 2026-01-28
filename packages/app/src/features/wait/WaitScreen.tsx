@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useCallback, type TouchEvent } from
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Check, Trash2, MoreVertical, Plus, Droplets, Share2, Users } from 'lucide-react';
 import { OrganicWaves, type BreathPhase } from '../../components/vector/OrganicWaves';
+import { CelebrationAnimation, type CelebrationPhase } from '../../components/vector/CelebrationAnimation';
 import { DurationPicker, TimePicker } from '../../components/WheelPicker';
 import { useContractionStore } from '../../stores/contractionStore';
 import { useAppStore } from '../../stores/appStore';
@@ -1840,6 +1841,10 @@ export function WaitScreen({
   const [showMenu, setShowMenu] = useState(false);
   const [showAddSheet, setShowAddSheet] = useState(false);
   const [showWaterBrokeSheet, setShowWaterBrokeSheet] = useState(false);
+  
+  // Celebration states
+  const [celebrationPhase, setCelebrationPhase] = useState<CelebrationPhase>('idle');
+  const [showCelebrationContent, setShowCelebrationContent] = useState(false);
   const [showExportSheet, setShowExportSheet] = useState(false);
   const [showWavyControls, setShowWavyControls] = useState(false);
   const [wavyParams, setWavyParams] = useState(wavyBorderParams);
@@ -1976,9 +1981,13 @@ export function WaitScreen({
   
   const handleBabyArrived = useCallback(() => {
     trigger('success');
-    setPhase('moment');
-    onBabyArrived?.();
-  }, [trigger, setPhase, onBabyArrived]);
+    setCelebrationPhase('dissolving');
+  }, [trigger]);
+  
+  const handleDissolveComplete = useCallback(() => {
+    setCelebrationPhase('complete');
+    setTimeout(() => setShowCelebrationContent(true), 300);
+  }, []);
   
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -2050,22 +2059,33 @@ export function WaitScreen({
       }}
     >
       {/* Organic flowing rings with heartbeat - Press 'S' for controls */}
-      <OrganicWaves
-        state={isRecording ? 'recording' : 'idle'}
-        breathPhase={breathPhase}
-        breathProgress={breathProgress}
-        width={dimensions.width}
-        height={dimensions.height}
-        strokeWidth={1.2}
-        color={lineColor}
-      />
+      {celebrationPhase === 'idle' ? (
+        <OrganicWaves
+          state={isRecording ? 'recording' : 'idle'}
+          breathPhase={breathPhase}
+          breathProgress={breathProgress}
+          width={dimensions.width}
+          height={dimensions.height}
+          strokeWidth={1.2}
+          color={lineColor}
+        />
+      ) : (
+        <CelebrationAnimation
+          phase={celebrationPhase}
+          onDissolveComplete={handleDissolveComplete}
+          width={dimensions.width}
+          height={dimensions.height}
+          strokeWidth={1.2}
+          color={lineColor}
+        />
+      )}
       
-      {/* Top Navigation Pill - hides during recording and before BEGIN */}
+      {/* Top Navigation Pill - hides during recording, before BEGIN, and during celebration */}
       <motion.nav
         initial={{ opacity: 0, y: -20 }}
         animate={{ 
-          opacity: (isHydrated && !hasBegun) || isRecording ? 0 : 1, 
-          y: (isHydrated && !hasBegun) || isRecording ? -60 : 0 
+          opacity: (isHydrated && !hasBegun) || isRecording || celebrationPhase !== 'idle' ? 0 : 1, 
+          y: (isHydrated && !hasBegun) || isRecording || celebrationPhase !== 'idle' ? -60 : 0 
         }}
         transition={{ type: 'spring', damping: 30, stiffness: 300 }}
         style={{
@@ -2074,7 +2094,7 @@ export function WaitScreen({
           display: 'flex',
           justifyContent: 'center',
           padding: '24px 24px 0',
-          pointerEvents: (isHydrated && !hasBegun) || isRecording ? 'none' : 'auto',
+          pointerEvents: (isHydrated && !hasBegun) || isRecording || celebrationPhase !== 'idle' ? 'none' : 'auto',
         }}
         role="navigation"
         aria-label="Main navigation"
@@ -2256,7 +2276,7 @@ export function WaitScreen({
               </AnimatePresence>
             </div>
           </motion.button>
-        ) : (
+        ) : celebrationPhase === 'idle' ? (
           <motion.div
             key="birth-area"
             initial={{ opacity: 0 }}
@@ -2286,47 +2306,74 @@ export function WaitScreen({
                 lineHeight: 1.6,
               }}
             >
-              When the moment arrives,<br />hold to celebrate
+              This is it?
             </p>
             
             <motion.button
-              onMouseDown={(e) => {
-                const btn = e.currentTarget;
-                let held = true;
-                const timeout = setTimeout(() => {
-                  if (held) handleBabyArrived();
-                }, 2000);
-                const cleanup = () => { held = false; clearTimeout(timeout); };
-                btn.addEventListener('mouseup', cleanup, { once: true });
-                btn.addEventListener('mouseleave', cleanup, { once: true });
-              }}
-              onTouchStart={(e) => {
-                const btn = e.currentTarget;
-                let held = true;
-                const timeout = setTimeout(() => {
-                  if (held) handleBabyArrived();
-                }, 2000);
-                const cleanup = () => { held = false; clearTimeout(timeout); };
-                btn.addEventListener('touchend', cleanup, { once: true });
-                btn.addEventListener('touchcancel', cleanup, { once: true });
-              }}
-              whileTap={{ scale: 0.95 }}
+              onClick={handleBabyArrived}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               transition={framerSpring}
               style={{
                 fontFamily: 'var(--font-sans, sans-serif)',
-                fontSize: 13,
-                fontWeight: 500,
+                fontSize: 12,
+                fontWeight: 600,
                 letterSpacing: '0.15em',
                 color: bgColor,
                 backgroundColor: lineColor,
                 border: 'none',
-                padding: '18px 40px',
+                padding: '16px 48px',
                 borderRadius: 50,
                 cursor: 'pointer',
               }}
             >
               BABY IS HERE
             </motion.button>
+          </motion.div>
+        ) : (
+          /* Center text during celebration - same position as MAAY/ADD */
+          <motion.div
+            key="celebration-center"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 5,
+              pointerEvents: 'none',
+            }}
+          >
+            <AnimatePresence mode="wait">
+              {celebrationPhase === 'complete' && (
+                <motion.span
+                  key="life-begins"
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 0.7, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  transition={{ duration: 0.8 }}
+                  style={{
+                    fontFamily: 'var(--font-sans, sans-serif)',
+                    fontSize: 18,
+                    fontWeight: 300,
+                    letterSpacing: '0.35em',
+                    color: lineColor,
+                    textAlign: 'center',
+                    lineHeight: 1.8,
+                  }}
+                >
+                  L I F E
+                  <br />
+                  B E G I N S
+                </motion.span>
+              )}
+            </AnimatePresence>
           </motion.div>
         )}
       </AnimatePresence>
@@ -2380,9 +2427,9 @@ export function WaitScreen({
               style={{
                 marginTop: 8,
                 fontFamily: 'var(--font-sans, sans-serif)',
-                fontSize: 13,
+                fontSize: 12,
                 fontWeight: 600,
-                letterSpacing: '0.1em',
+                letterSpacing: '0.15em',
                 color: bgColor,
                 backgroundColor: lineColor,
                 border: 'none',
@@ -2784,6 +2831,84 @@ export function WaitScreen({
             lineColor={lineColor}
             isNight={isNight}
           />
+        )}
+      </AnimatePresence>
+      
+      {/* Celebration Content - same design as welcome splash */}
+      <AnimatePresence>
+        {showCelebrationContent && (
+          <motion.div
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%', opacity: 0 }}
+            transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+            style={{
+              position: 'absolute',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              zIndex: 45,
+              padding: '40px 32px 60px',
+              background: `linear-gradient(to top, ${bgColor} 0%, ${bgColor}f5 60%, ${bgColor}00 100%)`,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 24,
+            }}
+          >
+            {/* Subtitle message */}
+            <div
+              style={{
+                fontFamily: 'var(--font-sans, sans-serif)',
+                fontSize: 13,
+                fontWeight: 400,
+                letterSpacing: '0.1em',
+                color: lineColor,
+                opacity: 0.5,
+                textAlign: 'center',
+                lineHeight: 1.8,
+                textTransform: 'uppercase',
+              }}
+            >
+              Congratulations mama
+              <br />
+              You created life
+            </div>
+            
+            {/* Export Button - secondary style */}
+            <motion.button
+              onClick={() => setShowExportSheet(true)}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              style={{
+                marginTop: 8,
+                fontFamily: 'var(--font-sans, sans-serif)',
+                fontSize: 12,
+                fontWeight: 600,
+                letterSpacing: '0.15em',
+                color: lineColor,
+                backgroundColor: 'transparent',
+                border: `1px solid ${lineColor}40`,
+                padding: '14px 40px',
+                borderRadius: 50,
+                cursor: 'pointer',
+              }}
+            >
+              EXPORT DATA
+            </motion.button>
+            
+            {/* Delete message */}
+            <p style={{
+              fontFamily: 'var(--font-serif, Georgia, serif)',
+              fontSize: 12,
+              fontStyle: 'italic',
+              color: lineColor,
+              opacity: 0.5,
+              marginTop: -12,
+            }}>
+              Now you can delete the app :)
+            </p>
+          </motion.div>
         )}
       </AnimatePresence>
     </main>
