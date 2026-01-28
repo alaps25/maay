@@ -3103,7 +3103,7 @@ export function WaitScreen({
               left: 0,
               right: 0,
               zIndex: 20,
-              height: allContractions.length === 0 ? '15vh' : (sheetExpanded ? '80vh' : '20vh'),
+              height: allContractions.length === 0 ? '12vh' : (sheetExpanded ? '80vh' : '24vh'),
               transition: 'height 0.3s ease-out',
               backgroundColor: isNight ? 'rgba(30, 30, 30, 0.6)' : 'rgba(255, 255, 255, 0.6)',
               backdropFilter: 'blur(4px)',
@@ -3191,51 +3191,53 @@ export function WaitScreen({
                 overflow: 'hidden',
               }}
             >
-              {/* Header row - always visible */}
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '1fr 1fr 1fr',
-                  flexShrink: 0,
-                }}
-              >
-                <div style={{ textAlign: 'center' }}>
-                  <span style={{
-                    fontFamily: 'var(--font-sans, sans-serif)',
-                    fontSize: 9,
-                    fontWeight: 500,
-                    letterSpacing: '0.1em',
-                    color: lineColor,
-                    opacity: 0.5,
-                  }}>
-                    DURATION
-                  </span>
+              {/* Header row - only show when there are entries */}
+              {allContractions.length > 0 && (
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr 1fr',
+                    flexShrink: 0,
+                  }}
+                >
+                  <div style={{ textAlign: 'center' }}>
+                    <span style={{
+                      fontFamily: 'var(--font-sans, sans-serif)',
+                      fontSize: 9,
+                      fontWeight: 500,
+                      letterSpacing: '0.1em',
+                      color: lineColor,
+                      opacity: 0.5,
+                    }}>
+                      DURATION
+                    </span>
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <span style={{
+                      fontFamily: 'var(--font-sans, sans-serif)',
+                      fontSize: 9,
+                      fontWeight: 500,
+                      letterSpacing: '0.1em',
+                      color: lineColor,
+                      opacity: 0.5,
+                    }}>
+                      INTERVAL
+                    </span>
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <span style={{
+                      fontFamily: 'var(--font-sans, sans-serif)',
+                      fontSize: 9,
+                      fontWeight: 500,
+                      letterSpacing: '0.1em',
+                      color: lineColor,
+                      opacity: 0.5,
+                    }}>
+                      TIME
+                    </span>
+                  </div>
                 </div>
-                <div style={{ textAlign: 'center' }}>
-                  <span style={{
-                    fontFamily: 'var(--font-sans, sans-serif)',
-                    fontSize: 9,
-                    fontWeight: 500,
-                    letterSpacing: '0.1em',
-                    color: lineColor,
-                    opacity: 0.5,
-                  }}>
-                    INTERVAL
-                  </span>
-                </div>
-                <div style={{ textAlign: 'center' }}>
-                  <span style={{
-                    fontFamily: 'var(--font-sans, sans-serif)',
-                    fontSize: 9,
-                    fontWeight: 500,
-                    letterSpacing: '0.1em',
-                    color: lineColor,
-                    opacity: 0.5,
-                  }}>
-                    TIME
-                  </span>
-                </div>
-              </div>
+              )}
               
               {/* Data rows - tap to edit */}
               <div
@@ -3416,8 +3418,10 @@ export function WaitScreen({
             onWaterBroke={() => setShowWaterBrokeSheet(true)}
             onExport={() => setShowExportSheet(true)}
             onPairPartner={() => setShowPairSheet(true)}
-            onClearAll={() => {
+            onClearAll={async () => {
               clearAll();
+              // Clear Firebase session data and localStorage
+              await pairSession.clearSession();
               // Return to welcome screen
               localStorage.removeItem('maay-has-begun');
               setHasBegun(false);
