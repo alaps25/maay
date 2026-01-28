@@ -28,6 +28,7 @@ interface UsePairSessionReturn {
   createMySession: () => Promise<void>;
   joinPartnerSession: (code: string) => Promise<boolean>;
   leaveSession: () => Promise<void>;
+  clearSession: () => Promise<void>; // Clear all session data (localStorage + Firebase)
   
   // Sync contractions to Firebase
   syncContraction: (contraction: { id: string; startTime: number; duration: number | null; type?: 'contraction' | 'water_broke' }) => void;
@@ -270,6 +271,38 @@ export function usePairSession(): UsePairSessionReturn {
     deleteContractionFromSession(sessionCode, id);
   }, [sessionCode]);
   
+  // Clear all session data (for "Clear Data" flow)
+  const clearSession = useCallback(async () => {
+    // Clear Firebase contractions if we have an active session
+    if (sessionCode) {
+      try {
+        await clearSessionContractions(sessionCode);
+      } catch (e) {
+        console.error('Failed to clear Firebase contractions:', e);
+      }
+    }
+    
+    // Unsubscribe from any active listeners
+    if (unsubscribeRef.current) {
+      unsubscribeRef.current();
+      unsubscribeRef.current = null;
+    }
+    if (unsubscribeDeviceCountRef.current) {
+      unsubscribeDeviceCountRef.current();
+      unsubscribeDeviceCountRef.current = null;
+    }
+    
+    // Clear local state
+    setSessionCode(null);
+    setIsConnected(false);
+    setPartnerDeviceCount(0);
+    setMyCode(generatePairCode());
+    
+    // Clear localStorage
+    localStorage.removeItem('maay-session-code');
+    localStorage.removeItem('maay-was-paired');
+  }, [sessionCode]);
+  
   return {
     isConnected,
     sessionCode,
@@ -277,6 +310,7 @@ export function usePairSession(): UsePairSessionReturn {
     createMySession,
     joinPartnerSession,
     leaveSession,
+    clearSession,
     syncContraction,
     syncDeleteContraction,
     isSyncing,
