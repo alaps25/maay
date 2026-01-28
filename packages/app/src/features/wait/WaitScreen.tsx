@@ -2,13 +2,14 @@
 
 import React, { useState, useEffect, useRef, useCallback, type TouchEvent } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Check, Trash2, MoreVertical, Plus, Droplets, Share2, Users } from 'lucide-react';
+import { X, Check, Trash2, MoreVertical, Plus, Droplets, Share2, Share, Users, ArrowUpFromLine } from 'lucide-react';
 import { OrganicWaves, type BreathPhase } from '../../components/vector/OrganicWaves';
 import { CelebrationAnimation, type CelebrationPhase } from '../../components/vector/CelebrationAnimation';
 import { DurationPicker, TimePicker } from '../../components/WheelPicker';
 import { useContractionStore } from '../../stores/contractionStore';
 import { useAppStore } from '../../stores/appStore';
 import { useHaptics } from '../../hooks/useHaptics';
+import { usePairSession } from '../../hooks/usePairSession';
 import { framerSpring } from '../../components/vector/spring';
 import { t } from '../../i18n';
 
@@ -951,37 +952,6 @@ function MenuSheet({
             </span>
           </button>
           
-          {/* Export Data */}
-          <button
-            onClick={() => {
-              onClose();
-              onExport();
-            }}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 10,
-              padding: '14px 24px',
-              background: 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-            }}
-          >
-            <Share2 size={16} strokeWidth={2} color={lineColor} style={{ opacity: 0.5 }} />
-            <span
-              style={{
-                fontFamily: 'var(--font-sans, sans-serif)',
-                fontSize: 12,
-                fontWeight: 500,
-                letterSpacing: '0.1em',
-                color: lineColor,
-              }}
-            >
-              EXPORT DATA
-            </span>
-          </button>
-          
           {/* Pair with Partner */}
           <button
             onClick={() => {
@@ -1013,6 +983,37 @@ function MenuSheet({
             </span>
           </button>
           
+          {/* Export Data */}
+          <button
+            onClick={() => {
+              onClose();
+              onExport();
+            }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 10,
+              padding: '14px 24px',
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+            }}
+          >
+            <ArrowUpFromLine size={16} strokeWidth={2} color={lineColor} style={{ opacity: 0.5 }} />
+            <span
+              style={{
+                fontFamily: 'var(--font-sans, sans-serif)',
+                fontSize: 12,
+                fontWeight: 500,
+                letterSpacing: '0.1em',
+                color: lineColor,
+              }}
+            >
+              EXPORT DATA
+            </span>
+          </button>
+          
           {/* Clear All - destructive action in red */}
           <button
             onClick={() => setShowClearConfirm(true)}
@@ -1040,6 +1041,391 @@ function MenuSheet({
               START FRESH
             </span>
           </button>
+        </div>
+      </motion.div>
+    </>
+  );
+}
+
+// Pair with Partner Sheet
+interface PairSheetProps {
+  onClose: () => void;
+  lineColor: string;
+  bgColor: string;
+  isNight: boolean;
+  pairSession: ReturnType<typeof usePairSession>;
+}
+
+function PairSheet({
+  onClose,
+  lineColor,
+  bgColor,
+  isNight,
+  pairSession,
+}: PairSheetProps) {
+  const {
+    isConnected,
+    sessionCode,
+    myCode,
+    createMySession,
+    joinPartnerSession,
+    leaveSession,
+    isSyncing,
+  } = pairSession;
+  
+  const [partnerCode, setPartnerCode] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const hasCreatedSession = useRef(false);
+  
+  // Reset hasCreatedSession when sessionCode becomes null (after unpair)
+  useEffect(() => {
+    if (!sessionCode) {
+      hasCreatedSession.current = false;
+    }
+  }, [sessionCode]);
+  
+  // Create session when sheet opens (so code is ready to share) - only once per session
+  useEffect(() => {
+    if (!hasCreatedSession.current && !isConnected && !sessionCode && myCode) {
+      hasCreatedSession.current = true;
+      createMySession();
+    }
+  }, [isConnected, sessionCode, myCode, createMySession]);
+  
+  const handleShare = useCallback(() => {
+    const codeToShare = sessionCode || myCode;
+    if (navigator.share) {
+      navigator.share({
+        title: 'Join me on MAAY',
+        text: `Use code ${codeToShare} to track contractions together`,
+      });
+    } else if (navigator.clipboard) {
+      navigator.clipboard.writeText(codeToShare);
+    }
+  }, [sessionCode, myCode]);
+  
+  const handleJoin = useCallback(async () => {
+    if (partnerCode.length !== 6) return;
+    
+    setError(null);
+    const success = await joinPartnerSession(partnerCode);
+    
+    if (success) {
+      setShowSuccess(true);
+      // Don't auto-close - the UI will update to show "PAIRED" state
+    } else {
+      setError('Invalid or expired code');
+    }
+  }, [partnerCode, joinPartnerSession]);
+  
+  return (
+    <>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        style={{
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          zIndex: 100,
+        }}
+      />
+      <motion.div
+        initial={{ y: '100%' }}
+        animate={{ y: 0 }}
+        exit={{ y: '100%' }}
+        drag="y"
+        dragConstraints={{ top: 0 }}
+        dragElastic={0.2}
+        onDragEnd={(_, info) => {
+          if (info.offset.y > 100) onClose();
+        }}
+        transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+        style={{
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          zIndex: 101,
+          backgroundColor: isNight ? 'rgba(0, 0, 0, 0.9)' : 'rgba(255, 255, 255, 0.95)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          borderTopLeftRadius: 20,
+          borderTopRightRadius: 20,
+        }}
+      >
+        {/* Header */}
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: '16px 20px 12px',
+          }}
+        >
+          {/* Close button */}
+          <button
+            onClick={onClose}
+            style={{
+              width: 32,
+              height: 32,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              color: lineColor,
+              opacity: 0.6,
+            }}
+            aria-label="Close"
+          >
+            <X size={18} strokeWidth={2} />
+          </button>
+          
+          {/* Title */}
+          <span
+            style={{
+              fontFamily: 'var(--font-sans, sans-serif)',
+              fontSize: 12,
+              fontWeight: 500,
+              letterSpacing: '0.1em',
+              color: lineColor,
+            }}
+          >
+            PAIR WITH PARTNER
+          </span>
+          
+          {/* Share button */}
+          <button
+            onClick={handleShare}
+            style={{
+              width: 32,
+              height: 32,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              color: lineColor,
+            }}
+            aria-label="Share code"
+          >
+            <Share size={16} strokeWidth={2} />
+          </button>
+        </div>
+        
+        {/* Content */}
+        <div style={{ 
+          padding: '8px 32px 40px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 24,
+        }}>
+          {/* Session Code Section */}
+          <div style={{ textAlign: 'center' }}>
+            <span
+              style={{
+                fontFamily: 'var(--font-sans, sans-serif)',
+                fontSize: 11,
+                fontWeight: 500,
+                letterSpacing: '0.12em',
+                color: lineColor,
+                opacity: 0.4,
+                display: 'block',
+              }}
+            >
+              {isConnected ? 'PAIRED' : 'SESSION CODE'}
+              {isConnected && <span style={{ opacity: 0.6, fontSize: 9, marginLeft: 6 }}>• SYNCING</span>}
+              {!isConnected && sessionCode && <span style={{ opacity: 0.6, fontSize: 9, marginLeft: 6 }}>• READY</span>}
+            </span>
+            
+            <div
+              style={{
+                fontFamily: 'var(--font-mono, monospace)',
+                fontSize: 28,
+                fontWeight: 600,
+                letterSpacing: '0.25em',
+                color: lineColor,
+                padding: '16px 28px',
+                backgroundColor: `${lineColor}08`,
+                borderRadius: 12,
+                marginTop: -12,
+                marginBottom: -24,
+                position: 'relative',
+              }}
+            >
+              {isSyncing || !myCode ? '...' : (sessionCode || myCode)}
+            </div>
+          </div>
+          
+          {isConnected ? (
+            // Joined partner's session - show unpair option
+            <>
+              <p style={{
+                fontFamily: 'var(--font-sans, sans-serif)',
+                fontSize: 12,
+                color: lineColor,
+                opacity: 0.5,
+                textAlign: 'center',
+                lineHeight: 1.6,
+                maxWidth: 240,
+              }}>
+                Contractions sync automatically between paired devices
+              </p>
+              
+              <motion.button
+                onClick={() => leaveSession()}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                style={{
+                  fontFamily: 'var(--font-sans, sans-serif)',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  letterSpacing: '0.15em',
+                  color: '#e53935',
+                  backgroundColor: 'transparent',
+                  border: `1px solid #e5393530`,
+                  padding: '14px 40px',
+                  borderRadius: 50,
+                  cursor: 'pointer',
+                }}
+              >
+                UNPAIR
+              </motion.button>
+            </>
+          ) : (
+            // Not paired yet - show share code + join option
+            <>
+              <p style={{
+                fontFamily: 'var(--font-sans, sans-serif)',
+                fontSize: 11,
+                color: lineColor,
+                opacity: 0.4,
+                textAlign: 'center',
+                maxWidth: 220,
+                lineHeight: 1.5,
+              }}>
+                Share your code with partner, or enter their code below
+              </p>
+              
+              {/* Divider */}
+              <div
+                style={{
+                  width: '100%',
+                  maxWidth: 240,
+                  height: 1,
+                  backgroundColor: `${lineColor}20`,
+                }}
+              />
+              
+              {/* Partner Code Section */}
+              <div style={{ 
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                width: '100%', 
+                maxWidth: 280,
+              }}>
+                <span
+                  style={{
+                    fontFamily: 'var(--font-sans, sans-serif)',
+                    fontSize: 11,
+                    fontWeight: 500,
+                    letterSpacing: '0.12em',
+                    color: lineColor,
+                    opacity: 0.4,
+                    display: 'block',
+                    marginBottom: 8,
+                  }}
+                >
+                  PARTNER'S CODE
+                </span>
+                
+                {showSuccess ? (
+                  <div style={{ padding: '20px 0' }}>
+                    <Check size={32} color={lineColor} style={{ opacity: 0.8 }} />
+                    <p style={{
+                      fontFamily: 'var(--font-sans, sans-serif)',
+                      fontSize: 12,
+                      color: lineColor,
+                      opacity: 0.6,
+                      marginTop: 8,
+                    }}>
+                      Connected!
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <input
+                      type="text"
+                      value={partnerCode}
+                      onChange={(e) => {
+                        setPartnerCode(e.target.value.toUpperCase().slice(0, 6));
+                        setError(null);
+                      }}
+                      placeholder="XXXXXX"
+                      maxLength={6}
+                      style={{
+                        fontFamily: 'var(--font-mono, monospace)',
+                        fontSize: 24,
+                        fontWeight: 600,
+                        letterSpacing: '0.25em',
+                        color: lineColor,
+                        padding: '14px 20px',
+                        backgroundColor: `${lineColor}05`,
+                        border: `1px solid ${error ? '#e53935' : `${lineColor}15`}`,
+                        borderRadius: 12,
+                        textAlign: 'center',
+                        width: '100%',
+                        maxWidth: 180,
+                        outline: 'none',
+                      }}
+                    />
+                    
+                    {error && (
+                      <p style={{
+                        fontFamily: 'var(--font-sans, sans-serif)',
+                        fontSize: 11,
+                        color: '#e53935',
+                        marginTop: 8,
+                      }}>
+                        {error}
+                      </p>
+                    )}
+                    
+                    <motion.button
+                      onClick={handleJoin}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      disabled={partnerCode.length !== 6 || isSyncing}
+                      style={{
+                        marginTop: 16,
+                        fontFamily: 'var(--font-sans, sans-serif)',
+                        fontSize: 12,
+                        fontWeight: 600,
+                        letterSpacing: '0.15em',
+                        color: partnerCode.length === 6 ? bgColor : lineColor,
+                        backgroundColor: partnerCode.length === 6 ? lineColor : 'transparent',
+                        border: partnerCode.length === 6 ? 'none' : `1px solid ${lineColor}20`,
+                        padding: '14px 40px',
+                        borderRadius: 50,
+                        cursor: partnerCode.length === 6 ? 'pointer' : 'not-allowed',
+                        opacity: partnerCode.length === 6 ? 1 : 0.3,
+                      }}
+                    >
+                      {isSyncing ? '...' : 'JOIN'}
+                    </motion.button>
+                  </>
+                )}
+              </div>
+            </>
+          )}
         </div>
       </motion.div>
     </>
@@ -1841,6 +2227,10 @@ export function WaitScreen({
   const [showMenu, setShowMenu] = useState(false);
   const [showAddSheet, setShowAddSheet] = useState(false);
   const [showWaterBrokeSheet, setShowWaterBrokeSheet] = useState(false);
+  const [showPairSheet, setShowPairSheet] = useState(false);
+  
+  // Pair session for real-time sync with partner
+  const pairSession = usePairSession();
   
   // Celebration states
   const [celebrationPhase, setCelebrationPhase] = useState<CelebrationPhase>('idle');
@@ -1967,7 +2357,22 @@ export function WaitScreen({
       setIsRecording(false);
       startTimeRef.current = null;
       trigger('success');
+      
+      // Get the active contraction before ending (for sync)
+      const activeContraction = useContractionStore.getState().activeContraction;
       endContraction();
+      
+      // Sync to Firebase if paired
+      if (activeContraction && pairSession.sessionCode) {
+        const endTime = Date.now();
+        const finalDuration = Math.round((endTime - activeContraction.startTime) / 1000);
+        pairSession.syncContraction({
+          id: activeContraction.id,
+          startTime: activeContraction.startTime,
+          duration: finalDuration,
+          type: 'contraction',
+        });
+      }
     } else {
       // Start recording
       setIsRecording(true);
@@ -2003,10 +2408,13 @@ export function WaitScreen({
     return `${secs}s`;
   };
   
-  const getInterval = (index: number) => {
-    if (index === 0) return null;
-    const current = contractions[index];
-    const previous = contractions[index - 1];
+  // Calculate interval between current contraction and the one before it (chronologically)
+  // allContractions is sorted newest-first, so "previous" is at index + 1
+  const getInterval = (sortedArray: typeof contractions, index: number) => {
+    if (index >= sortedArray.length - 1) return null; // Last (oldest) item has no interval
+    const current = sortedArray[index];
+    const previous = sortedArray[index + 1]; // Previous chronologically = next in array (since newest-first)
+    // Interval = time from end of previous contraction to start of current
     const interval = (current.startTime - (previous.endTime || previous.startTime)) / 1000 / 60;
     return Math.round(interval * 10) / 10;
   };
@@ -2018,8 +2426,8 @@ export function WaitScreen({
     }
   };
   
-  // All contractions, newest first
-  const allContractions = [...contractions].reverse();
+  // All contractions, newest first (sort to ensure consistent order regardless of source)
+  const allContractions = [...contractions].sort((a, b) => b.startTime - a.startTime);
   
   // Bottom sheet drag end handler - snap to expanded or collapsed state
   const handleSheetDragEnd = useCallback((_: unknown, info: { offset: { y: number }; velocity: { y: number } }) => {
@@ -2270,7 +2678,7 @@ export function WaitScreen({
                       opacity: (isHydrated && !hasBegun) ? 0.7 : 0.5,
                     }}
                   >
-                    {(isHydrated && !hasBegun) ? 'M A A Y' : 'A D D'}
+                    {(isHydrated && !hasBegun) ? 'M A A Y' : 'R E C O R D'}
                   </motion.span>
                 )}
               </AnimatePresence>
@@ -2446,7 +2854,7 @@ export function WaitScreen({
       
       {/* iOS-style Bottom Sheet - Contractions History (hidden during recording) */}
       <AnimatePresence>
-        {activeTab === 'contractions' && allContractions.length > 0 && !isRecording && (!isHydrated || hasBegun) && (
+        {activeTab === 'contractions' && !isRecording && (!isHydrated || hasBegun) && (
           <motion.section
             ref={sheetRef}
             initial={{ y: '100%' }}
@@ -2463,7 +2871,7 @@ export function WaitScreen({
               left: 0,
               right: 0,
               zIndex: 20,
-              height: sheetExpanded ? '80vh' : '20vh',
+              height: allContractions.length === 0 ? '15vh' : (sheetExpanded ? '80vh' : '20vh'),
               transition: 'height 0.3s ease-out',
               backgroundColor: isNight ? 'rgba(30, 30, 30, 0.6)' : 'rgba(255, 255, 255, 0.6)',
               backdropFilter: 'blur(4px)',
@@ -2514,9 +2922,10 @@ export function WaitScreen({
                   fontWeight: 500,
                   letterSpacing: '0.1em',
                   color: lineColor,
+                  opacity: allContractions.length === 0 ? 0.4 : 1,
                 }}
               >
-                CONTRACTIONS
+                {allContractions.length === 0 ? 'NO CONTRACTIONS' : 'CONTRACTIONS'}
               </span>
               
               {/* Plus button */}
@@ -2605,8 +3014,7 @@ export function WaitScreen({
                 }}
               >
                 {allContractions.map((contraction, idx) => {
-                  const actualIndex = contractions.length - 1 - idx;
-                  const interval = getInterval(actualIndex);
+                  const interval = getInterval(allContractions, idx);
                   const startDate = new Date(contraction.startTime);
                   const isWaterBroke = contraction.type === 'water_broke';
                   
@@ -2740,8 +3148,28 @@ export function WaitScreen({
           <EditContractionSheet
             contraction={contractions.find(c => c.id === editingId) || null}
             onClose={() => setEditingId(null)}
-            onSave={(id, updates) => updateContraction(id, updates)}
-            onDelete={(id) => deleteContraction(id)}
+            onSave={(id, updates) => {
+              updateContraction(id, updates);
+              // Sync update to Firebase if paired
+              if (pairSession.sessionCode) {
+                const contraction = contractions.find(c => c.id === id);
+                if (contraction) {
+                  pairSession.syncContraction({
+                    id,
+                    startTime: updates.startTime ?? contraction.startTime,
+                    duration: updates.duration ?? contraction.duration,
+                    type: contraction.type,
+                  });
+                }
+              }
+            }}
+            onDelete={(id) => {
+              deleteContraction(id);
+              // Sync deletion to Firebase if paired
+              if (pairSession.sessionCode) {
+                pairSession.syncDeleteContraction(id);
+              }
+            }}
             lineColor={lineColor}
             isNight={isNight}
           />
@@ -2755,13 +3183,23 @@ export function WaitScreen({
             onClose={() => setShowMenu(false)}
             onWaterBroke={() => setShowWaterBrokeSheet(true)}
             onExport={() => setShowExportSheet(true)}
-            onPairPartner={() => {
-              // TODO: Implement pairing feature
-              console.log('Pair with partner - coming soon');
-            }}
+            onPairPartner={() => setShowPairSheet(true)}
             onClearAll={() => clearAll()}
             lineColor={lineColor}
             isNight={isNight}
+          />
+        )}
+      </AnimatePresence>
+      
+      {/* Pair with Partner Sheet */}
+      <AnimatePresence>
+        {showPairSheet && (
+          <PairSheet
+            onClose={() => setShowPairSheet(false)}
+            lineColor={lineColor}
+            bgColor={bgColor}
+            isNight={isNight}
+            pairSession={pairSession}
           />
         )}
       </AnimatePresence>
@@ -2783,7 +3221,25 @@ export function WaitScreen({
         {showAddSheet && (
           <AddContractionSheet
             onClose={() => setShowAddSheet(false)}
-            onAdd={(startTime, duration) => addContraction(startTime, duration)}
+            onAdd={(startTime, duration) => {
+              addContraction(startTime, duration);
+              // Sync to Firebase if paired
+              if (pairSession.sessionCode) {
+                // Get the newly added contraction (it's the last one with this startTime)
+                setTimeout(() => {
+                  const contractions = useContractionStore.getState().contractions;
+                  const added = contractions.find(c => c.startTime === startTime && c.duration === duration);
+                  if (added) {
+                    pairSession.syncContraction({
+                      id: added.id,
+                      startTime: added.startTime,
+                      duration: added.duration,
+                      type: 'contraction',
+                    });
+                  }
+                }, 0);
+              }
+            }}
             lineColor={lineColor}
             isNight={isNight}
           />
@@ -2795,7 +3251,24 @@ export function WaitScreen({
         {showWaterBrokeSheet && (
           <WaterBrokeSheet
             onClose={() => setShowWaterBrokeSheet(false)}
-            onConfirm={(time) => addWaterBroke(time)}
+            onConfirm={(time) => {
+              addWaterBroke(time);
+              // Sync to Firebase if paired
+              if (pairSession.sessionCode) {
+                setTimeout(() => {
+                  const contractions = useContractionStore.getState().contractions;
+                  const waterBroke = contractions.find(c => c.type === 'water_broke' && c.startTime === time);
+                  if (waterBroke) {
+                    pairSession.syncContraction({
+                      id: waterBroke.id,
+                      startTime: waterBroke.startTime,
+                      duration: null,
+                      type: 'water_broke',
+                    });
+                  }
+                }, 0);
+              }
+            }}
             lineColor={lineColor}
             isNight={isNight}
           />
@@ -2813,6 +3286,10 @@ export function WaitScreen({
             }}
             onDelete={() => {
               deleteContraction(editingWaterBrokeId);
+              // Sync deletion to Firebase if paired
+              if (pairSession.sessionCode) {
+                pairSession.syncDeleteContraction(editingWaterBrokeId);
+              }
               setEditingWaterBrokeId(null);
             }}
             existingTime={contractions.find(c => c.id === editingWaterBrokeId)?.startTime}

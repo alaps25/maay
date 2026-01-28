@@ -10,6 +10,7 @@
   "dependencies": {
     "@baby/ui": "*",
     "@tanstack/react-query": "^5.14.2",
+    "firebase": "^12.8.0",
     "framer-motion": "^11.0.0",
     "solito": "^4.0.0",
     "zustand": "^4.4.7"
