@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback, type TouchEvent } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Check, Trash2, MoreVertical, Plus, Droplets, Share2, Share, Users, ArrowUpFromLine, ListX } from 'lucide-react';
+import { X, Check, Trash2, MoreVertical, Plus, Droplets, Share2, Share, Users, ArrowUpFromLine, ListX, CircleHelp, ChevronRight, ChevronLeft, Scale, Shield, FileText, AlertTriangle, Database, Sparkles } from 'lucide-react';
 import { OrganicWaves, type BreathPhase, type WaveParams, defaultWaveParams } from '../../components/vector/OrganicWaves';
 import { CelebrationAnimation, type CelebrationPhase } from '../../components/vector/CelebrationAnimation';
 import { DurationPicker, TimePicker } from '../../components/WheelPicker';
@@ -948,6 +948,499 @@ function BirthWaveControls({
         RESET TO DEFAULTS
       </button>
     </motion.div>
+  );
+}
+
+// About Sheet - shows app info and legal pages
+interface AboutSheetProps {
+  onClose: () => void;
+  lineColor: string;
+  isNight: boolean;
+}
+
+type AboutSubPage = 'main' | 'howItWorks' | 'impressum' | 'privacy' | 'terms' | 'medical' | 'gdpr';
+
+function AboutSheet({ onClose, lineColor, isNight }: AboutSheetProps) {
+  const [activePage, setActivePage] = useState<AboutSubPage>('main');
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const bgColor = isNight ? 'rgba(0, 0, 0, 0.95)' : 'rgba(255, 255, 255, 0.98)';
+  
+  // Reset scroll position when page changes
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = 0;
+    }
+  }, [activePage]);
+  
+  // Share the app
+  const handleShare = useCallback(() => {
+    const shareData = {
+      title: 'Maay',
+      text: 'A calming companion for tracking contractions during labor',
+      url: 'https://maay.app',
+    };
+    
+    if (navigator.share) {
+      navigator.share(shareData);
+    } else if (navigator.clipboard) {
+      navigator.clipboard.writeText(`${shareData.text} - ${shareData.url}`);
+    }
+  }, []);
+  
+  const menuItems: { id: AboutSubPage; label: string; icon: React.ReactNode }[] = [
+    { id: 'howItWorks', label: 'How It Works', icon: <Sparkles size={18} /> },
+    { id: 'impressum', label: 'Legal Notice (Impressum)', icon: <Scale size={18} /> },
+    { id: 'privacy', label: 'Privacy Policy', icon: <Shield size={18} /> },
+    { id: 'terms', label: 'Terms of Service', icon: <FileText size={18} /> },
+    { id: 'medical', label: 'Medical Disclaimer', icon: <AlertTriangle size={18} /> },
+    { id: 'gdpr', label: 'Your Data (GDPR)', icon: <Database size={18} /> },
+  ];
+  
+  const renderContent = () => {
+    switch (activePage) {
+      case 'howItWorks':
+        return (
+          <div style={{ padding: '0 24px 50px', color: lineColor }}>
+            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 15, lineHeight: 1.7, marginBottom: 24, opacity: 0.8 }}>
+              Maay helps you track contractions during labor with a simple, calming interface designed to reduce stress.
+            </p>
+            
+            <h3 style={{ fontFamily: 'var(--font-sans, sans-serif)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', marginBottom: 12, opacity: 0.6 }}>TRACKING CONTRACTIONS</h3>
+            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.7, marginBottom: 20, opacity: 0.8 }}>
+              <strong>Tap anywhere</strong> on the screen when a contraction starts. Tap again when it ends. The app automatically calculates duration and intervals between contractions.
+            </p>
+            
+            <h3 style={{ fontFamily: 'var(--font-sans, sans-serif)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', marginBottom: 12, opacity: 0.6 }}>BREATHING GUIDE</h3>
+            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.7, marginBottom: 20, opacity: 0.8 }}>
+              During recording, the flowing rings and gentle prompts guide you through calming breaths. Follow the visual rhythm to help manage each wave.
+            </p>
+            
+            <h3 style={{ fontFamily: 'var(--font-sans, sans-serif)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', marginBottom: 12, opacity: 0.6 }}>PAIR WITH PARTNER</h3>
+            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.7, marginBottom: 20, opacity: 0.8 }}>
+              Share a 6-digit code with your partner so they can follow along in real-time from their own device. Both can track contractions together.
+            </p>
+            
+            <h3 style={{ fontFamily: 'var(--font-sans, sans-serif)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', marginBottom: 12, opacity: 0.6 }}>WATER BROKE</h3>
+            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.7, marginBottom: 20, opacity: 0.8 }}>
+              Mark when your water breaks from the menu. This timestamp is included when you export your data for healthcare providers.
+            </p>
+            
+            <h3 style={{ fontFamily: 'var(--font-sans, sans-serif)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', marginBottom: 12, opacity: 0.6 }}>EXPORT DATA</h3>
+            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.7, marginBottom: 20, opacity: 0.8 }}>
+              Share your contraction history via text, copy to clipboard, or download as a file to show your midwife or doctor.
+            </p>
+            
+            <h3 style={{ fontFamily: 'var(--font-sans, sans-serif)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', marginBottom: 12, opacity: 0.6 }}>BIRTH TAB</h3>
+            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.7, opacity: 0.8 }}>
+              When the moment arrives, switch to the Birth tab. The calming waves continue as you prepare to welcome your baby.
+            </p>
+          </div>
+        );
+        
+      case 'impressum':
+        return (
+          <div style={{ padding: '0 24px 50px', color: lineColor }}>
+            <h3 style={{ fontFamily: 'var(--font-sans, sans-serif)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', marginBottom: 16, opacity: 0.6 }}>ANGABEN GEMÄSS § 5 TMG</h3>
+            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 15, lineHeight: 1.7, marginBottom: 24, opacity: 0.8 }}>
+              Alap Shah<br />
+              13187 Berlin<br />
+              Germany
+            </p>
+            
+            <h3 style={{ fontFamily: 'var(--font-sans, sans-serif)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', marginBottom: 16, opacity: 0.6 }}>KONTAKT</h3>
+            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 15, lineHeight: 1.7, marginBottom: 24, opacity: 0.8 }}>
+              E-Mail: alaps@gmx.de
+            </p>
+            
+            <h3 style={{ fontFamily: 'var(--font-sans, sans-serif)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', marginBottom: 16, opacity: 0.6 }}>VERANTWORTLICH FÜR DEN INHALT</h3>
+            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 15, lineHeight: 1.7, marginBottom: 24, opacity: 0.8 }}>
+              Alap Shah<br />
+              13187 Berlin
+            </p>
+            
+            <h3 style={{ fontFamily: 'var(--font-sans, sans-serif)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', marginBottom: 16, opacity: 0.6 }}>EU-STREITSCHLICHTUNG</h3>
+            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.7, opacity: 0.8 }}>
+              Die Europäische Kommission stellt eine Plattform zur Online-Streitbeilegung (OS) bereit: https://ec.europa.eu/consumers/odr/. Wir sind nicht bereit oder verpflichtet, an Streitbeilegungsverfahren vor einer Verbraucherschlichtungsstelle teilzunehmen.
+            </p>
+          </div>
+        );
+        
+      case 'privacy':
+        return (
+          <div style={{ padding: '0 24px 50px', color: lineColor }}>
+            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.7, marginBottom: 24, opacity: 0.8, fontStyle: 'italic' }}>
+              Last updated: January 2026
+            </p>
+            
+            <h3 style={{ fontFamily: 'var(--font-sans, sans-serif)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', marginBottom: 12, opacity: 0.6 }}>DATA WE COLLECT</h3>
+            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.7, marginBottom: 20, opacity: 0.8 }}>
+              <strong>Contraction data:</strong> Start times, durations, and intervals are stored locally on your device. This data never leaves your device unless you explicitly export it or use the pairing feature.
+            </p>
+            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.7, marginBottom: 20, opacity: 0.8 }}>
+              <strong>Pairing feature:</strong> When you pair with a partner, contraction data is temporarily synced via Firebase Realtime Database. A random device ID and session code are generated—no personal information is collected.
+            </p>
+            
+            <h3 style={{ fontFamily: 'var(--font-sans, sans-serif)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', marginBottom: 12, opacity: 0.6 }}>DATA WE DO NOT COLLECT</h3>
+            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.7, marginBottom: 20, opacity: 0.8 }}>
+              We do not collect names, email addresses, location data, device information, analytics, or any other personal information. There are no cookies, no tracking, and no advertisements.
+            </p>
+            
+            <h3 style={{ fontFamily: 'var(--font-sans, sans-serif)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', marginBottom: 12, opacity: 0.6 }}>DATA STORAGE</h3>
+            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.7, marginBottom: 20, opacity: 0.8 }}>
+              All data is stored locally in your browser&apos;s storage. When using the pairing feature, data is temporarily stored on Firebase servers (Google Cloud, EU region) and is deleted when you unpair or clear your data.
+            </p>
+            
+            <h3 style={{ fontFamily: 'var(--font-sans, sans-serif)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', marginBottom: 12, opacity: 0.6 }}>YOUR RIGHTS</h3>
+            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.7, marginBottom: 20, opacity: 0.8 }}>
+              You can export all your data at any time using the Export feature. You can delete all your data using Clear Data in the menu. For questions, contact alaps@gmx.de.
+            </p>
+            
+            <h3 style={{ fontFamily: 'var(--font-sans, sans-serif)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', marginBottom: 12, opacity: 0.6 }}>THIRD-PARTY SERVICES</h3>
+            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.7, opacity: 0.8 }}>
+              Firebase Realtime Database (Google) is used only for the optional pairing feature. Vercel hosts this application. Neither service receives personal data from this app.
+            </p>
+          </div>
+        );
+        
+      case 'terms':
+        return (
+          <div style={{ padding: '0 24px 50px', color: lineColor }}>
+            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.7, marginBottom: 24, opacity: 0.8, fontStyle: 'italic' }}>
+              Last updated: January 2026
+            </p>
+            
+            <h3 style={{ fontFamily: 'var(--font-sans, sans-serif)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', marginBottom: 12, opacity: 0.6 }}>ACCEPTANCE OF TERMS</h3>
+            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.7, marginBottom: 20, opacity: 0.8 }}>
+              By using Maay, you agree to these terms. If you do not agree, please do not use the app.
+            </p>
+            
+            <h3 style={{ fontFamily: 'var(--font-sans, sans-serif)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', marginBottom: 12, opacity: 0.6 }}>SERVICE DESCRIPTION</h3>
+            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.7, marginBottom: 20, opacity: 0.8 }}>
+              Maay is a free contraction tracking tool provided as-is for informational purposes only. It is not a medical device and should not be used as a substitute for professional medical advice.
+            </p>
+            
+            <h3 style={{ fontFamily: 'var(--font-sans, sans-serif)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', marginBottom: 12, opacity: 0.6 }}>USER RESPONSIBILITIES</h3>
+            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.7, marginBottom: 20, opacity: 0.8 }}>
+              You are responsible for ensuring this app is appropriate for your needs. Always follow your healthcare provider&apos;s guidance regarding labor and delivery.
+            </p>
+            
+            <h3 style={{ fontFamily: 'var(--font-sans, sans-serif)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', marginBottom: 12, opacity: 0.6 }}>LIMITATION OF LIABILITY</h3>
+            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.7, marginBottom: 20, opacity: 0.8 }}>
+              This app is provided &quot;as is&quot; without warranties of any kind. The developer is not liable for any damages arising from the use of this app. Use at your own discretion.
+            </p>
+            
+            <h3 style={{ fontFamily: 'var(--font-sans, sans-serif)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', marginBottom: 12, opacity: 0.6 }}>CHANGES TO TERMS</h3>
+            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.7, opacity: 0.8 }}>
+              These terms may be updated from time to time. Continued use of the app constitutes acceptance of any changes.
+            </p>
+          </div>
+        );
+        
+      case 'medical':
+        return (
+          <div style={{ padding: '0 24px 50px', color: lineColor }}>
+            <div style={{ 
+              backgroundColor: isNight ? 'rgba(255,200,100,0.1)' : 'rgba(200,150,50,0.1)', 
+              padding: 16, 
+              borderRadius: 12, 
+              marginBottom: 24,
+              border: `1px solid ${isNight ? 'rgba(255,200,100,0.2)' : 'rgba(200,150,50,0.2)'}`
+            }}>
+              <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 15, lineHeight: 1.7, color: lineColor, fontWeight: 500 }}>
+                ⚠️ Maay is NOT a medical device. It does not provide medical advice, diagnosis, or treatment recommendations.
+              </p>
+            </div>
+            
+            <h3 style={{ fontFamily: 'var(--font-sans, sans-serif)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', marginBottom: 12, opacity: 0.6 }}>INFORMATIONAL USE ONLY</h3>
+            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.7, marginBottom: 20, opacity: 0.8 }}>
+              This app is designed to help you track contraction timing for informational purposes. It is a simple timer and logging tool—nothing more.
+            </p>
+            
+            <h3 style={{ fontFamily: 'var(--font-sans, sans-serif)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', marginBottom: 12, opacity: 0.6 }}>ALWAYS CONSULT HEALTHCARE PROVIDERS</h3>
+            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.7, marginBottom: 20, opacity: 0.8 }}>
+              Always follow your midwife&apos;s, doctor&apos;s, or healthcare provider&apos;s instructions. They know your specific medical situation. When in doubt, call your healthcare provider or go to the hospital.
+            </p>
+            
+            <h3 style={{ fontFamily: 'var(--font-sans, sans-serif)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', marginBottom: 12, opacity: 0.6 }}>EMERGENCY SITUATIONS</h3>
+            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.7, marginBottom: 20, opacity: 0.8 }}>
+              Do not rely on this app in medical emergencies. If you experience heavy bleeding, severe pain, reduced baby movement, or any other concerning symptoms, seek immediate medical attention.
+            </p>
+            
+            <h3 style={{ fontFamily: 'var(--font-sans, sans-serif)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', marginBottom: 12, opacity: 0.6 }}>NO WARRANTY OF ACCURACY</h3>
+            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.7, opacity: 0.8 }}>
+              The developer makes no guarantees about the accuracy of timing data. Technical issues, user error, or device problems may affect recorded times.
+            </p>
+          </div>
+        );
+        
+      case 'gdpr':
+        return (
+          <div style={{ padding: '0 24px 50px', color: lineColor }}>
+            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.7, marginBottom: 24, opacity: 0.8 }}>
+              Under the General Data Protection Regulation (GDPR), you have rights regarding your personal data.
+            </p>
+            
+            <h3 style={{ fontFamily: 'var(--font-sans, sans-serif)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', marginBottom: 12, opacity: 0.6 }}>YOUR DATA</h3>
+            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.7, marginBottom: 20, opacity: 0.8 }}>
+              Maay stores the following data locally on your device:
+            </p>
+            <ul style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.8, marginBottom: 20, opacity: 0.8, paddingLeft: 20 }}>
+              <li>Contraction start times and durations</li>
+              <li>Water broke timestamp (if recorded)</li>
+              <li>Pairing session code (if using pair feature)</li>
+              <li>Random device identifier (for pairing only)</li>
+            </ul>
+            
+            <h3 style={{ fontFamily: 'var(--font-sans, sans-serif)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', marginBottom: 12, opacity: 0.6 }}>RIGHT TO ACCESS (EXPORT)</h3>
+            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.7, marginBottom: 20, opacity: 0.8 }}>
+              You can export all your data at any time: Open the menu (three dots) → tap &quot;Export Data&quot; → choose your preferred format.
+            </p>
+            
+            <h3 style={{ fontFamily: 'var(--font-sans, sans-serif)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', marginBottom: 12, opacity: 0.6 }}>RIGHT TO ERASURE (DELETE)</h3>
+            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.7, marginBottom: 20, opacity: 0.8 }}>
+              You can delete all your data at any time: Open the menu (three dots) → tap &quot;Clear Data&quot; → confirm deletion. This removes all local data and any data synced to Firebase.
+            </p>
+            
+            <h3 style={{ fontFamily: 'var(--font-sans, sans-serif)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', marginBottom: 12, opacity: 0.6 }}>DATA PORTABILITY</h3>
+            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.7, marginBottom: 20, opacity: 0.8 }}>
+              The Export feature provides your data in a human-readable text format that can be shared with healthcare providers or saved for your records.
+            </p>
+            
+            <h3 style={{ fontFamily: 'var(--font-sans, sans-serif)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', marginBottom: 12, opacity: 0.6 }}>CONTACT</h3>
+            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.7, opacity: 0.8 }}>
+              For any data-related questions or requests, contact: alaps@gmx.de
+            </p>
+          </div>
+        );
+        
+      default: // main
+        return (
+          <div style={{ padding: '0 24px 50px' }}>
+            {/* App Description */}
+            <p style={{ 
+              fontFamily: 'var(--font-serif, Georgia, serif)', 
+              fontSize: 15, 
+              lineHeight: 1.8, 
+              color: lineColor, 
+              opacity: 0.8,
+              marginBottom: 32,
+              textAlign: 'center',
+            }}>
+              I built Maay for my partner, though a little too late for us. I noticed a gap that no one was elegantly solving—a truly calming companion for one of life&apos;s most intense moments. There are many problems to solve in this journey, but I started with the first one. I hope it helps all mothers, and their partners who want to support them.
+            </p>
+            
+            {/* Menu Items */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {menuItems.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => setActivePage(item.id)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                    padding: '16px 0',
+                    background: 'transparent',
+                    border: 'none',
+                    borderBottom: `1px solid ${lineColor}15`,
+                    cursor: 'pointer',
+                    width: '100%',
+                    textAlign: 'left',
+                  }}
+                >
+                  <span style={{ color: lineColor, opacity: 0.5 }}>{item.icon}</span>
+                  <span style={{ 
+                    flex: 1,
+                    fontFamily: 'var(--font-sans, sans-serif)', 
+                    fontSize: 14, 
+                    color: lineColor,
+                  }}>
+                    {item.label}
+                  </span>
+                  <ChevronRight size={16} style={{ color: lineColor, opacity: 0.3 }} />
+                </button>
+              ))}
+            </div>
+            
+            {/* Version */}
+            <p style={{ 
+              fontFamily: 'var(--font-sans, sans-serif)', 
+              fontSize: 11, 
+              color: lineColor, 
+              opacity: 0.3,
+              textAlign: 'center',
+              marginTop: 32,
+            }}>
+              Maay v1.0 · Made with love in Berlin
+            </p>
+          </div>
+        );
+    }
+  };
+  
+  const getPageTitle = () => {
+    switch (activePage) {
+      case 'howItWorks': return 'HOW IT WORKS';
+      case 'impressum': return 'LEGAL NOTICE';
+      case 'privacy': return 'PRIVACY POLICY';
+      case 'terms': return 'TERMS OF SERVICE';
+      case 'medical': return 'MEDICAL DISCLAIMER';
+      case 'gdpr': return 'YOUR DATA';
+      default: return 'ABOUT MAAY';
+    }
+  };
+  
+  return (
+    <>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        style={{
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          zIndex: 100,
+        }}
+      />
+      <motion.div
+        initial={{ y: '100%' }}
+        animate={{ y: 0 }}
+        exit={{ y: '100%' }}
+        drag="y"
+        dragConstraints={{ top: 0 }}
+        dragElastic={0.2}
+        onDragEnd={(_, info) => {
+          if (info.offset.y > 100) onClose();
+        }}
+        transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+        style={{
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: '80vh',
+          zIndex: 101,
+          backgroundColor: bgColor,
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          borderTopLeftRadius: 20,
+          borderTopRightRadius: 20,
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        <SheetDragHandle lineColor={lineColor} />
+        
+        {/* Header */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          padding: '4px 20px 12px',
+          borderBottom: `1px solid ${lineColor}10`,
+        }}>
+          {/* Left button - Close or Back */}
+          {activePage !== 'main' ? (
+            <button
+              onClick={() => setActivePage('main')}
+              style={{
+                width: 32,
+                height: 32,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                color: lineColor,
+                opacity: 0.6,
+              }}
+              aria-label="Back"
+            >
+              <ChevronLeft size={18} />
+            </button>
+          ) : (
+            <button
+              onClick={onClose}
+              style={{
+                width: 32,
+                height: 32,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                color: lineColor,
+                opacity: 0.6,
+              }}
+              aria-label="Close"
+            >
+              <X size={18} strokeWidth={2} />
+            </button>
+          )}
+          
+          {/* Title */}
+          <span style={{
+            flex: 1,
+            textAlign: 'center',
+            fontFamily: 'var(--font-sans, sans-serif)',
+            fontSize: 12,
+            fontWeight: 500,
+            letterSpacing: '0.1em',
+            color: lineColor,
+          }}>
+            {getPageTitle()}
+          </span>
+          
+          {/* Right button - Share (only on main page) */}
+          {activePage === 'main' ? (
+            <button
+              onClick={handleShare}
+              style={{
+                width: 32,
+                height: 32,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                color: lineColor,
+              }}
+              aria-label="Share app"
+            >
+              <Share size={16} strokeWidth={2} />
+            </button>
+          ) : (
+            <div style={{ width: 32 }} />
+          )}
+        </div>
+        
+        {/* Content */}
+        <div 
+          ref={scrollRef}
+          style={{ 
+            flex: 1, 
+            overflowY: 'auto', 
+            paddingTop: 20,
+          }}
+        >
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activePage}
+              initial={{ opacity: 0, x: activePage === 'main' ? -20 : 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: activePage === 'main' ? 20 : -20 }}
+              transition={{ duration: 0.2 }}
+            >
+              {renderContent()}
+            </motion.div>
+          </AnimatePresence>
+        </div>
+      </motion.div>
+    </>
   );
 }
 
@@ -2444,6 +2937,7 @@ export function WaitScreen({
   const [showMenu, setShowMenu] = useState(false);
   const [showAddSheet, setShowAddSheet] = useState(false);
   const [showWaterBrokeSheet, setShowWaterBrokeSheet] = useState(false);
+  const [showAboutSheet, setShowAboutSheet] = useState(false);
   const [showPairSheet, setShowPairSheet] = useState(false);
   
   // Pair session for real-time sync with partner
@@ -2789,6 +3283,36 @@ export function WaitScreen({
           </button>
         </div>
       </motion.nav>
+      
+      {/* About/Help Button - Top Left */}
+      <motion.button
+        initial={{ opacity: 0 }}
+        animate={{ 
+          opacity: (isHydrated && !hasBegun) || isRecording || celebrationPhase !== 'idle' ? 0 : 0.5, 
+        }}
+        whileHover={{ opacity: 0.8 }}
+        transition={{ duration: 0.3 }}
+        onClick={() => setShowAboutSheet(true)}
+        style={{
+          position: 'fixed',
+          top: 28,
+          left: 20,
+          zIndex: 15,
+          width: 32,
+          height: 32,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'transparent',
+          border: 'none',
+          cursor: 'pointer',
+          color: lineColor,
+          pointerEvents: (isHydrated && !hasBegun) || isRecording || celebrationPhase !== 'idle' ? 'none' : 'auto',
+        }}
+        aria-label="About Maay"
+      >
+        <CircleHelp size={20} strokeWidth={1.5} />
+      </motion.button>
       
       {/* Main Interactive Area - ENTIRE SPACE CLICKABLE */}
       <AnimatePresence mode="wait">
@@ -3404,6 +3928,17 @@ export function WaitScreen({
                 pairSession.syncDeleteContraction(id);
               }
             }}
+            lineColor={lineColor}
+            isNight={isNight}
+          />
+        )}
+      </AnimatePresence>
+      
+      {/* About Sheet */}
+      <AnimatePresence>
+        {showAboutSheet && (
+          <AboutSheet
+            onClose={() => setShowAboutSheet(false)}
             lineColor={lineColor}
             isNight={isNight}
           />
