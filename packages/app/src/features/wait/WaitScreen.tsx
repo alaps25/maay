@@ -323,7 +323,7 @@ function EditContractionSheet({
         
         {/* Content - Side by side pickers */}
         <div style={{ 
-          padding: '24px 16px 36px',
+          padding: '24px 16px 50px',
           display: 'flex',
           justifyContent: 'center',
           gap: 48,
@@ -377,7 +377,7 @@ function EditContractionSheet({
         
         {/* Delete Button */}
         <div style={{ 
-          padding: '8px 16px 36px',
+          padding: '8px 16px 50px',
           display: 'flex',
           justifyContent: 'center',
         }}>
@@ -2049,7 +2049,7 @@ function AddContractionSheet({
         
         {/* Content */}
         <div style={{ 
-          padding: '24px 16px 36px',
+          padding: '24px 16px 50px',
           display: 'flex',
           justifyContent: 'center',
           gap: 48,
@@ -2360,7 +2360,7 @@ function WaterBrokeSheet({
         
         {/* Content */}
         <div style={{ 
-          padding: '24px 16px 36px',
+          padding: '24px 16px 50px',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -2930,6 +2930,7 @@ export function WaitScreen({
               position: 'relative',
               zIndex: 5,
               padding: 32,
+              marginTop: -40, // Offset to visually center (compensate for nav bar)
             }}
           >
             <p
@@ -2941,7 +2942,7 @@ export function WaitScreen({
                 opacity: 0.5,
                 textAlign: 'center',
                 maxWidth: 280,
-                marginBottom: 32,
+                marginBottom: 12,
                 lineHeight: 1.6,
               }}
             >

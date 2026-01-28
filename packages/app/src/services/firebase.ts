@@ -1,6 +1,6 @@
 'use client';
 
-import { initializeApp, getApps } from 'firebase/app';
+import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
 import { 
   getDatabase, 
   ref, 
@@ -15,21 +15,35 @@ import {
   type DatabaseReference
 } from 'firebase/database';
 
-// Firebase configuration
+// Firebase configuration from environment variables
 const firebaseConfig = {
-  apiKey: "AIzaSyAq8R25oDwPbl-N8AX7C6yxJ0C0yhh5acc",
-  authDomain: "maay-9999.firebaseapp.com",
-  databaseURL: "https://maay-9999-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "maay-9999",
-  storageBucket: "maay-9999.firebasestorage.app",
-  messagingSenderId: "504420615400",
-  appId: "1:504420615400:web:1e7842371399df43e0755d",
-  measurementId: "G-R8BN7X0C54"
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
-// Initialize Firebase (singleton)
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
-const database = getDatabase(app);
+// Lazy initialization - only initialize on client side when needed
+let app: FirebaseApp | null = null;
+let database: Database | null = null;
+
+function getFirebaseDatabase(): Database {
+  // Only initialize on client side
+  if (typeof window === 'undefined') {
+    throw new Error('Firebase can only be used on client side');
+  }
+  
+  if (!database) {
+    app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+    database = getDatabase(app);
+  }
+  
+  return database;
+}
 
 // Types
 export interface SessionContraction {
@@ -68,7 +82,7 @@ export function generatePairCode(): string {
 
 // Create a new pairing session
 export async function createSession(code: string): Promise<string> {
-  const sessionRef = ref(database, `sessions/${code}`);
+  const sessionRef = ref(getFirebaseDatabase(), `sessions/${code}`);
   const deviceId = getDeviceId();
   
   const session: Omit<PairSession, 'contractions'> & { contractions: null } = {
@@ -85,7 +99,7 @@ export async function createSession(code: string): Promise<string> {
 
 // Join an existing session
 export async function joinSession(code: string): Promise<boolean> {
-  const sessionRef = ref(database, `sessions/${code}`);
+  const sessionRef = ref(getFirebaseDatabase(), `sessions/${code}`);
   const snapshot = await get(sessionRef);
   
   if (!snapshot.exists()) {
@@ -105,7 +119,7 @@ export async function joinSession(code: string): Promise<boolean> {
   
   if (!deviceIds.includes(deviceId)) {
     deviceIds.push(deviceId);
-    await set(ref(database, `sessions/${code}/deviceIds`), deviceIds);
+    await set(ref(getFirebaseDatabase(), `sessions/${code}/deviceIds`), deviceIds);
   }
   
   return true;
@@ -113,7 +127,7 @@ export async function joinSession(code: string): Promise<boolean> {
 
 // Check if a session exists and is valid
 export async function checkSession(code: string): Promise<boolean> {
-  const sessionRef = ref(database, `sessions/${code}`);
+  const sessionRef = ref(getFirebaseDatabase(), `sessions/${code}`);
   const snapshot = await get(sessionRef);
   
   if (!snapshot.exists()) {
@@ -124,18 +138,27 @@ export async function checkSession(code: string): Promise<boolean> {
   return session.expiresAt > Date.now();
 }
 
+// Helper to remove undefined values (Firebase doesn't accept undefined)
+function removeUndefined<T extends Record<string, unknown>>(obj: T): T {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([_, value]) => value !== undefined)
+  ) as T;
+}
+
 // Add a contraction to the session
 export async function addContractionToSession(
   sessionCode: string, 
   contraction: Omit<SessionContraction, 'addedBy' | 'createdAt'>
 ): Promise<void> {
-  const contractionRef = ref(database, `sessions/${sessionCode}/contractions/${contraction.id}`);
+  const contractionRef = ref(getFirebaseDatabase(), `sessions/${sessionCode}/contractions/${contraction.id}`);
   
-  await set(contractionRef, {
+  const data = removeUndefined({
     ...contraction,
     addedBy: getDeviceId(),
     createdAt: Date.now(),
   });
+  
+  await set(contractionRef, data);
 }
 
 // Update a contraction in the session
@@ -144,12 +167,13 @@ export async function updateContractionInSession(
   contractionId: string,
   updates: Partial<SessionContraction>
 ): Promise<void> {
-  const contractionRef = ref(database, `sessions/${sessionCode}/contractions/${contractionId}`);
+  const contractionRef = ref(getFirebaseDatabase(), `sessions/${sessionCode}/contractions/${contractionId}`);
   const snapshot = await get(contractionRef);
   
   if (snapshot.exists()) {
     const existing = snapshot.val();
-    await set(contractionRef, { ...existing, ...updates });
+    const data = removeUndefined({ ...existing, ...updates });
+    await set(contractionRef, data);
   }
 }
 
@@ -158,7 +182,7 @@ export async function deleteContractionFromSession(
   sessionCode: string,
   contractionId: string
 ): Promise<void> {
-  const contractionRef = ref(database, `sessions/${sessionCode}/contractions/${contractionId}`);
+  const contractionRef = ref(getFirebaseDatabase(), `sessions/${sessionCode}/contractions/${contractionId}`);
   await remove(contractionRef);
 }
 
@@ -167,7 +191,7 @@ export function subscribeToContractions(
   sessionCode: string,
   callback: (contractions: SessionContraction[]) => void
 ): () => void {
-  const contractionsRef = ref(database, `sessions/${sessionCode}/contractions`);
+  const contractionsRef = ref(getFirebaseDatabase(), `sessions/${sessionCode}/contractions`);
   
   const unsubscribe = onValue(contractionsRef, (snapshot) => {
     const data = snapshot.val();
@@ -187,14 +211,14 @@ export function subscribeToContractions(
 
 // Clear all contractions in a session (Start Fresh)
 export async function clearSessionContractions(sessionCode: string): Promise<void> {
-  const contractionsRef = ref(database, `sessions/${sessionCode}/contractions`);
+  const contractionsRef = ref(getFirebaseDatabase(), `sessions/${sessionCode}/contractions`);
   await remove(contractionsRef);
 }
 
 // Remove device from session (when unpairing)
 export async function leaveSessionInFirebase(sessionCode: string): Promise<void> {
   const deviceId = getDeviceId();
-  const deviceIdsRef = ref(database, `sessions/${sessionCode}/deviceIds`);
+  const deviceIdsRef = ref(getFirebaseDatabase(), `sessions/${sessionCode}/deviceIds`);
   const snapshot = await get(deviceIdsRef);
   
   if (snapshot.exists()) {
@@ -209,7 +233,7 @@ export function subscribeToDeviceCount(
   sessionCode: string,
   callback: (count: number) => void
 ): () => void {
-  const deviceIdsRef = ref(database, `sessions/${sessionCode}/deviceIds`);
+  const deviceIdsRef = ref(getFirebaseDatabase(), `sessions/${sessionCode}/deviceIds`);
   
   const unsubscribe = onValue(deviceIdsRef, (snapshot) => {
     const data = snapshot.val();
