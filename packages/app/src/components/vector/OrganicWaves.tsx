@@ -6,6 +6,50 @@ import { perlin2D } from './noise';
 export type WaveState = 'idle' | 'recording';
 export type BreathPhase = 'inhale' | 'exhale';
 
+// Exportable wave parameters for external control
+export interface WaveParams {
+  heartbeatBPM: number;
+  pulseStrength: number;
+  waviness: number;
+  flowSpeed: number;
+  outerLooseness: number;
+  innerTightness: number;
+  lineCount: number;
+  minRadiusPercent: number;
+  maxRadiusPercent: number;
+  outerBlur: number;
+  timeScale: number; // Animation speed multiplier
+}
+
+export const defaultWaveParams: WaveParams = {
+  heartbeatBPM: 34,
+  pulseStrength: 0.19,
+  waviness: 1.1,
+  flowSpeed: 0.03,
+  outerLooseness: 0.2,
+  innerTightness: 0.035,
+  lineCount: 15,
+  minRadiusPercent: 26,
+  maxRadiusPercent: 79,
+  outerBlur: 3.5,
+  timeScale: 1.0, // Normal speed
+};
+
+// Birth mode defaults - no heartbeat, more wave movement
+export const birthModeWaveParams: WaveParams = {
+  heartbeatBPM: 0, // No heartbeat
+  pulseStrength: 0,
+  waviness: 2.0, // More wavy
+  flowSpeed: 0.05, // Faster flow
+  outerLooseness: 0.35,
+  innerTightness: 0.02,
+  lineCount: 15,
+  minRadiusPercent: 26,
+  maxRadiusPercent: 79,
+  outerBlur: 4.0,
+  timeScale: 1.0,
+};
+
 interface OrganicWavesProps {
   state: WaveState;
   breathPhase?: BreathPhase;
@@ -15,6 +59,9 @@ interface OrganicWavesProps {
   strokeWidth?: number;
   color?: string;
   className?: string;
+  // External control props
+  externalParams?: Partial<WaveParams>;
+  enableHeartbeat?: boolean;
 }
 
 /**
@@ -34,6 +81,8 @@ export function OrganicWaves({
   strokeWidth = 1.2,
   color = '#1a1a1a',
   className = '',
+  externalParams,
+  enableHeartbeat = true,
 }: OrganicWavesProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number>(0);
@@ -41,23 +90,62 @@ export function OrganicWaves({
   const stateRef = useRef(state);
   const breathPhaseRef = useRef(breathPhase);
   const breathProgressRef = useRef(breathProgress);
+  const enableHeartbeatRef = useRef(enableHeartbeat);
+  
+  // Update enableHeartbeat ref
+  useEffect(() => {
+    enableHeartbeatRef.current = enableHeartbeat;
+  }, [enableHeartbeat]);
   
   // Control panels
   const [showWaveControls, setShowWaveControls] = useState(false);
   const [showBreathControls, setShowBreathControls] = useState(false);
   
   // === RING PARAMETERS (same for both modes) ===
-  const [heartbeatBPM, setHeartbeatBPM] = useState(34);
-  const [pulseStrength, setPulseStrength] = useState(0.19);
-  const [lineCount, setLineCount] = useState(15);
+  const [heartbeatBPM, setHeartbeatBPM] = useState(externalParams?.heartbeatBPM ?? defaultWaveParams.heartbeatBPM);
+  const [pulseStrength, setPulseStrength] = useState(externalParams?.pulseStrength ?? defaultWaveParams.pulseStrength);
+  const [lineCount, setLineCount] = useState(externalParams?.lineCount ?? defaultWaveParams.lineCount);
   const [spacingExponent, setSpacingExponent] = useState(1.75);
-  const [minRadiusPercent, setMinRadiusPercent] = useState(26);
-  const [maxRadiusPercent, setMaxRadiusPercent] = useState(79);
-  const [innerTightness, setInnerTightness] = useState(0.035);
-  const [outerLooseness, setOuterLooseness] = useState(0.2);
-  const [waviness, setWaviness] = useState(1.1);
-  const [flowSpeed, setFlowSpeed] = useState(0.03);
-  const [outerBlur, setOuterBlur] = useState(3.5);
+  const [minRadiusPercent, setMinRadiusPercent] = useState(externalParams?.minRadiusPercent ?? defaultWaveParams.minRadiusPercent);
+  const [maxRadiusPercent, setMaxRadiusPercent] = useState(externalParams?.maxRadiusPercent ?? defaultWaveParams.maxRadiusPercent);
+  const [innerTightness, setInnerTightness] = useState(externalParams?.innerTightness ?? defaultWaveParams.innerTightness);
+  const [outerLooseness, setOuterLooseness] = useState(externalParams?.outerLooseness ?? defaultWaveParams.outerLooseness);
+  const [waviness, setWaviness] = useState(externalParams?.waviness ?? defaultWaveParams.waviness);
+  const [flowSpeed, setFlowSpeed] = useState(externalParams?.flowSpeed ?? defaultWaveParams.flowSpeed);
+  const [outerBlur, setOuterBlur] = useState(externalParams?.outerBlur ?? defaultWaveParams.outerBlur);
+  const [timeScale, setTimeScale] = useState(externalParams?.timeScale ?? defaultWaveParams.timeScale);
+  
+  // Update internal state when external params change
+  // When externalParams is undefined/empty, reset to defaults (for switching back from birth to contractions)
+  useEffect(() => {
+    if (externalParams && Object.keys(externalParams).length > 0) {
+      // Apply external overrides for birth page
+      if (externalParams.heartbeatBPM !== undefined) setHeartbeatBPM(externalParams.heartbeatBPM);
+      if (externalParams.pulseStrength !== undefined) setPulseStrength(externalParams.pulseStrength);
+      if (externalParams.timeScale !== undefined) setTimeScale(externalParams.timeScale);
+      if (externalParams.waviness !== undefined) setWaviness(externalParams.waviness);
+      if (externalParams.flowSpeed !== undefined) setFlowSpeed(externalParams.flowSpeed);
+      if (externalParams.outerLooseness !== undefined) setOuterLooseness(externalParams.outerLooseness);
+      if (externalParams.innerTightness !== undefined) setInnerTightness(externalParams.innerTightness);
+      if (externalParams.lineCount !== undefined) setLineCount(externalParams.lineCount);
+      if (externalParams.minRadiusPercent !== undefined) setMinRadiusPercent(externalParams.minRadiusPercent);
+      if (externalParams.maxRadiusPercent !== undefined) setMaxRadiusPercent(externalParams.maxRadiusPercent);
+      if (externalParams.outerBlur !== undefined) setOuterBlur(externalParams.outerBlur);
+    } else {
+      // Reset to defaults when switching back to contractions page
+      setHeartbeatBPM(defaultWaveParams.heartbeatBPM);
+      setPulseStrength(defaultWaveParams.pulseStrength);
+      setTimeScale(defaultWaveParams.timeScale);
+      setWaviness(defaultWaveParams.waviness);
+      setFlowSpeed(defaultWaveParams.flowSpeed);
+      setOuterLooseness(defaultWaveParams.outerLooseness);
+      setInnerTightness(defaultWaveParams.innerTightness);
+      setLineCount(defaultWaveParams.lineCount);
+      setMinRadiusPercent(defaultWaveParams.minRadiusPercent);
+      setMaxRadiusPercent(defaultWaveParams.maxRadiusPercent);
+      setOuterBlur(defaultWaveParams.outerBlur);
+    }
+  }, [externalParams]);
   
   // === BREATHING ANIMATION PARAMETERS ===
   const [breathStrength, setBreathStrength] = useState(1.17);
@@ -66,7 +154,9 @@ export function OrganicWaves({
   const [outerBreathResponse, setOuterBreathResponse] = useState(1.5);
   const [breathEasing, setBreathEasing] = useState(0.4);
   
-  const heartbeatInterval = 60 / heartbeatBPM;
+  // If heartbeat disabled or BPM is 0, use very large interval (effectively no pulse)
+  const heartbeatInterval = (!enableHeartbeat || heartbeatBPM === 0) ? 999999 : 60 / heartbeatBPM;
+  const effectivePulseStrength = (!enableHeartbeat || heartbeatBPM === 0) ? 0 : pulseStrength;
   
   // Key listeners
   useEffect(() => {
@@ -89,7 +179,7 @@ export function OrganicWaves({
   
   // Store params in refs
   const paramsRef = useRef({
-    pulseStrength,
+    pulseStrength: effectivePulseStrength,
     innerTightness,
     outerLooseness,
     flowSpeed,
@@ -105,11 +195,12 @@ export function OrganicWaves({
     innerBreathResponse,
     outerBreathResponse,
     breathEasing,
+    timeScale,
   });
   
   useEffect(() => {
     paramsRef.current = {
-      pulseStrength,
+      pulseStrength: effectivePulseStrength,
       innerTightness,
       outerLooseness,
       flowSpeed,
@@ -125,8 +216,9 @@ export function OrganicWaves({
       innerBreathResponse,
       outerBreathResponse,
       breathEasing,
+      timeScale,
     };
-  }, [pulseStrength, innerTightness, outerLooseness, flowSpeed, heartbeatInterval, lineCount, spacingExponent, minRadiusPercent, maxRadiusPercent, waviness, outerBlur, breathStrength, breathFlowSpeed, innerBreathResponse, outerBreathResponse, breathEasing]);
+  }, [effectivePulseStrength, innerTightness, outerLooseness, flowSpeed, heartbeatInterval, lineCount, spacingExponent, minRadiusPercent, maxRadiusPercent, waviness, outerBlur, breathStrength, breathFlowSpeed, innerBreathResponse, outerBreathResponse, breathEasing, timeScale]);
   
   useEffect(() => {
     stateRef.current = state;
@@ -249,9 +341,9 @@ export function OrganicWaves({
     ctx.scale(dpr, dpr);
     
     const animate = () => {
-      timeRef.current += 0.016;
-      const time = timeRef.current;
       const params = paramsRef.current;
+      timeRef.current += 0.016 * params.timeScale;
+      const time = timeRef.current;
       const currentState = stateRef.current;
       const currentBreathPhase = breathPhaseRef.current;
       const currentBreathProgress = breathProgressRef.current;
@@ -269,11 +361,11 @@ export function OrganicWaves({
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
       
-      // === HEARTBEAT PULSE (idle mode) ===
+      // === HEARTBEAT PULSE (idle mode, only if enabled) ===
       let pulseWavePosition = 0;
       let pulseIntensityMultiplier = 0;
       
-      if (!isRecording) {
+      if (!isRecording && enableHeartbeatRef.current) {
         const beatPhase = (time % params.heartbeatInterval) / params.heartbeatInterval;
         const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
         pulseWavePosition = easeOutCubic(beatPhase);
