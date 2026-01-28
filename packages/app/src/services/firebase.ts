@@ -124,6 +124,13 @@ export async function checkSession(code: string): Promise<boolean> {
   return session.expiresAt > Date.now();
 }
 
+// Helper to remove undefined values (Firebase doesn't accept undefined)
+function removeUndefined<T extends Record<string, unknown>>(obj: T): T {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([_, value]) => value !== undefined)
+  ) as T;
+}
+
 // Add a contraction to the session
 export async function addContractionToSession(
   sessionCode: string, 
@@ -131,11 +138,13 @@ export async function addContractionToSession(
 ): Promise<void> {
   const contractionRef = ref(database, `sessions/${sessionCode}/contractions/${contraction.id}`);
   
-  await set(contractionRef, {
+  const data = removeUndefined({
     ...contraction,
     addedBy: getDeviceId(),
     createdAt: Date.now(),
   });
+  
+  await set(contractionRef, data);
 }
 
 // Update a contraction in the session
@@ -149,7 +158,8 @@ export async function updateContractionInSession(
   
   if (snapshot.exists()) {
     const existing = snapshot.val();
-    await set(contractionRef, { ...existing, ...updates });
+    const data = removeUndefined({ ...existing, ...updates });
+    await set(contractionRef, data);
   }
 }
 
