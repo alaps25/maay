@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback, type TouchEvent } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Check, Trash2, MoreVertical, Plus, Droplets, Share2, Share, Users, ArrowUpFromLine } from 'lucide-react';
+import { X, Check, Trash2, MoreVertical, Plus, Droplets, Share2, Share, Users, ArrowUpFromLine, ListX } from 'lucide-react';
 import { OrganicWaves, type BreathPhase } from '../../components/vector/OrganicWaves';
 import { CelebrationAnimation, type CelebrationPhase } from '../../components/vector/CelebrationAnimation';
 import { DurationPicker, TimePicker } from '../../components/WheelPicker';
@@ -1014,7 +1014,7 @@ function MenuSheet({
             </span>
           </button>
           
-          {/* Clear All - destructive action in red */}
+          {/* Clear All */}
           <button
             onClick={() => setShowClearConfirm(true)}
             style={{
@@ -1026,16 +1026,17 @@ function MenuSheet({
               background: 'transparent',
               border: 'none',
               cursor: 'pointer',
+              opacity: 0.5,
             }}
           >
-            <Trash2 size={16} strokeWidth={2} color="#e53935" style={{ opacity: 0.8 }} />
+            <ListX size={16} strokeWidth={2} color={lineColor} />
             <span
               style={{
                 fontFamily: 'var(--font-sans, sans-serif)',
                 fontSize: 12,
                 fontWeight: 500,
                 letterSpacing: '0.1em',
-                color: '#e53935',
+                color: lineColor,
               }}
             >
               START FRESH
@@ -3184,7 +3185,12 @@ export function WaitScreen({
             onWaterBroke={() => setShowWaterBrokeSheet(true)}
             onExport={() => setShowExportSheet(true)}
             onPairPartner={() => setShowPairSheet(true)}
-            onClearAll={() => clearAll()}
+            onClearAll={() => {
+              clearAll();
+              // Return to welcome screen
+              localStorage.removeItem('maay-has-begun');
+              setHasBegun(false);
+            }}
             lineColor={lineColor}
             isNight={isNight}
           />
