@@ -1,11 +1,10 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback, type TouchEvent } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Check, Trash2, MoreVertical, Plus, Droplets, Share2, Share, Users, ArrowUpFromLine, ListX, CircleHelp, ChevronRight, ChevronLeft, Scale, Shield, FileText, AlertTriangle, Database, Sparkles } from 'lucide-react';
-import { OrganicWaves, type BreathPhase, type WaveParams, defaultWaveParams } from '../../components/vector/OrganicWaves';
+import { CircleHelp } from 'lucide-react';
+import { OrganicWaves, type BreathPhase, type WaveParams } from '../../components/vector/OrganicWaves';
 import { CelebrationAnimation, type CelebrationPhase } from '../../components/vector/CelebrationAnimation';
-import { DurationPicker, TimePicker } from '../../components/WheelPicker';
 import { useContractionStore } from '../../stores/contractionStore';
 import { useAppStore } from '../../stores/appStore';
 import { useHaptics } from '../../hooks/useHaptics';
@@ -13,2905 +12,41 @@ import { usePairSession } from '../../hooks/usePairSession';
 import { framerSpring } from '../../components/vector/spring';
 import { t } from '../../i18n';
 
-interface WaitScreenProps {
-  locale?: 'en' | 'es';
-  onBabyArrived?: () => void;
-}
+// Import extracted components
+import {
+  SheetDragHandle,
+  ContractionsHistorySheet,
+  EditContractionSheet,
+  AddContractionSheet,
+  WaterBrokeSheet,
+  MenuSheet,
+  PairSheet,
+  ExportSheet,
+  AboutSheet,
+  WavyBorderControls,
+  BirthWaveControls,
+} from './components';
 
-type Tab = 'contractions' | 'birth';
+// Import constants and types
+import { INHALE_DURATION, EXHALE_DURATION, CYCLE_DURATION, wavyBorderParams } from './constants';
+import type { WaitScreenProps, Tab } from './types';
 
-// Medical standard breathing for labor (paced breathing technique)
-// Promotes relaxation, oxygen flow, and pelvic floor relaxation during contractions
-// Based on doula/Lamaze recommendations - no breath holding during labor
-const INHALE_DURATION = 4000;  // 4 seconds - breathe in through nose
-const EXHALE_DURATION = 6000;  // 6 seconds - breathe out through mouth (longer exhale promotes relaxation)
-const CYCLE_DURATION = INHALE_DURATION + EXHALE_DURATION; // 10 seconds total
-
-// Edit Contraction Sheet component
-interface EditSheetProps {
-  contraction: {
-    id: string;
-    startTime: number;
-    duration: number | null;
-  } | null;
-  onClose: () => void;
-  onSave: (id: string, updates: { duration?: number; startTime?: number }) => void;
-  onDelete: (id: string) => void;
-  lineColor: string;
-  isNight: boolean;
-}
-
-function EditContractionSheet({
-  contraction,
-  onClose,
-  onSave,
-  onDelete,
-  lineColor,
-  isNight,
-}: EditSheetProps) {
-  // Initialize state directly from contraction
-  const initialDuration = contraction ? {
-    mins: Math.floor((contraction.duration || 0) / 60),
-    secs: (contraction.duration || 0) % 60,
-  } : { mins: 0, secs: 0 };
-  
-  const initialTime = contraction ? {
-    hours: new Date(contraction.startTime).getHours(),
-    minutes: new Date(contraction.startTime).getMinutes(),
-  } : { hours: 12, minutes: 0 };
-  
-  const [editDuration, setEditDuration] = useState(initialDuration);
-  const [editTime, setEditTime] = useState(initialTime);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  
-  // Update when contraction changes (for when sheet stays open but contraction changes)
-  useEffect(() => {
-    if (contraction) {
-      const durationSecs = contraction.duration || 0;
-      setEditDuration({
-        mins: Math.floor(durationSecs / 60),
-        secs: durationSecs % 60,
-      });
-      
-      const date = new Date(contraction.startTime);
-      setEditTime({
-        hours: date.getHours(),
-        minutes: date.getMinutes(),
-      });
-    }
-  }, [contraction?.id]); // Only re-run if contraction ID changes
-  
-  const handleSave = () => {
-    if (!contraction) return;
-    
-    const newDate = new Date(contraction.startTime);
-    newDate.setHours(editTime.hours);
-    newDate.setMinutes(editTime.minutes);
-    
-    onSave(contraction.id, {
-      duration: editDuration.mins * 60 + editDuration.secs,
-      startTime: newDate.getTime(),
-    });
-    onClose();
-  };
-  
-  if (!contraction) return null;
-  
-  return (
-    <>
-      {/* Backdrop */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        onClick={onClose}
-        style={{
-          position: 'fixed',
-          inset: 0,
-          backgroundColor: 'rgba(0,0,0,0.5)',
-          zIndex: 100,
-        }}
-      />
-      
-      {/* Sheet */}
-      <motion.div
-        initial={{ y: '100%' }}
-        animate={{ y: 0 }}
-        exit={{ y: '100%' }}
-        drag="y"
-        dragConstraints={{ top: 0 }}
-        dragElastic={0.2}
-        onDragEnd={(_, info) => {
-          if (info.offset.y > 100) onClose();
-        }}
-        transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-        style={{
-          position: 'fixed',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          zIndex: 101,
-          backgroundColor: isNight ? 'rgba(0, 0, 0, 0.9)' : 'rgba(255, 255, 255, 0.95)',
-          backdropFilter: 'blur(16px)',
-          WebkitBackdropFilter: 'blur(16px)',
-          borderTopLeftRadius: 20,
-          borderTopRightRadius: 20,
-        }}
-      >
-        <SheetDragHandle lineColor={lineColor} />
-        
-        {/* Header */}
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            padding: '4px 16px 12px',
-          }}
-        >
-          {/* X button (cancel) */}
-          <button
-            onClick={onClose}
-            style={{
-              width: 32,
-              height: 32,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: `${lineColor}10`,
-              border: 'none',
-              borderRadius: '50%',
-              cursor: 'pointer',
-              color: lineColor,
-              opacity: 0.6,
-            }}
-            aria-label="Cancel"
-          >
-            <X size={16} strokeWidth={2} />
-          </button>
-          
-          <span
-            style={{
-              fontFamily: 'var(--font-sans, sans-serif)',
-              fontSize: 12,
-              fontWeight: 500,
-              letterSpacing: '0.1em',
-              color: lineColor,
-            }}
-          >
-            EDIT CONTRACTION
-          </span>
-          
-          {/* Check button (save) */}
-          <button
-            onClick={handleSave}
-            style={{
-              width: 32,
-              height: 32,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: lineColor,
-              border: 'none',
-              borderRadius: '50%',
-              cursor: 'pointer',
-              color: isNight ? '#000' : '#fff',
-            }}
-            aria-label="Save"
-          >
-            <Check size={16} strokeWidth={2.5} />
-          </button>
-        </div>
-        
-        {/* Delete Confirmation Sheet */}
-        <AnimatePresence>
-          {showDeleteConfirm && (
-            <>
-              {/* Backdrop */}
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                onClick={() => setShowDeleteConfirm(false)}
-                style={{
-                  position: 'fixed',
-                  inset: 0,
-                  backgroundColor: 'rgba(0,0,0,0.5)',
-                  zIndex: 200,
-                }}
-              />
-              {/* Confirmation Sheet */}
-              <motion.div
-                initial={{ y: '100%' }}
-                animate={{ y: 0 }}
-                exit={{ y: '100%' }}
-                transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-                style={{
-                  position: 'fixed',
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  zIndex: 201,
-                  backgroundColor: isNight ? 'rgba(0, 0, 0, 0.95)' : 'rgba(255, 255, 255, 0.98)',
-                  backdropFilter: 'blur(16px)',
-                  WebkitBackdropFilter: 'blur(16px)',
-                  borderTopLeftRadius: 20,
-                  borderTopRightRadius: 20,
-                  padding: '12px 24px 40px',
-                }}
-              >
-                <SheetDragHandle lineColor={lineColor} />
-                
-                <div style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: 20,
-                  paddingTop: 16,
-                }}>
-                  <span
-                    style={{
-                      fontFamily: 'var(--font-sans, sans-serif)',
-                      fontSize: 12,
-                      fontWeight: 500,
-                      letterSpacing: '0.1em',
-                      color: lineColor,
-                    }}
-                  >
-                    DELETE RECORDING
-                  </span>
-                  
-                  <span
-                    style={{
-                      fontFamily: 'var(--font-serif, Georgia, serif)',
-                      fontSize: 16,
-                      fontStyle: 'italic',
-                      color: lineColor,
-                      opacity: 0.6,
-                      textAlign: 'center',
-                    }}
-                  >
-                    This action cannot be undone
-                  </span>
-                  
-                  <div style={{ display: 'flex', gap: 16, marginTop: 8 }}>
-                    <button
-                      onClick={() => setShowDeleteConfirm(false)}
-                      style={{
-                        fontFamily: 'var(--font-sans, sans-serif)',
-                        fontSize: 12,
-                        fontWeight: 500,
-                        letterSpacing: '0.08em',
-                        color: lineColor,
-                        backgroundColor: `${lineColor}10`,
-                        border: 'none',
-                        padding: '12px 24px',
-                        borderRadius: 50,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      CANCEL
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (contraction) {
-                          onDelete(contraction.id);
-                          onClose();
-                        }
-                      }}
-                      style={{
-                        fontFamily: 'var(--font-sans, sans-serif)',
-                        fontSize: 12,
-                        fontWeight: 500,
-                        letterSpacing: '0.08em',
-                        color: '#fff',
-                        backgroundColor: '#e53935',
-                        border: 'none',
-                        padding: '12px 24px',
-                        borderRadius: 50,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      DELETE
-                    </button>
-                  </div>
-                </div>
-              </motion.div>
-            </>
-          )}
-        </AnimatePresence>
-        
-        {/* Content - Side by side pickers */}
-        <div style={{ 
-          padding: '24px 16px 50px',
-          display: 'flex',
-          justifyContent: 'center',
-          gap: 48,
-        }}>
-          {/* Start Time Section */}
-          <div style={{ textAlign: 'center' }}>
-            <div
-              style={{
-                fontFamily: 'var(--font-sans, sans-serif)',
-                fontSize: 9,
-                fontWeight: 500,
-                letterSpacing: '0.1em',
-                color: lineColor,
-                opacity: 0.4,
-                marginBottom: 16,
-              }}
-            >
-              TIME
-            </div>
-            <TimePicker
-              hours={editTime.hours}
-              minutes={editTime.minutes}
-              onChange={(hours, minutes) => setEditTime({ hours, minutes })}
-              color={lineColor}
-            />
-          </div>
-          
-          {/* Duration Section */}
-          <div style={{ textAlign: 'center' }}>
-            <div
-              style={{
-                fontFamily: 'var(--font-sans, sans-serif)',
-                fontSize: 9,
-                fontWeight: 500,
-                letterSpacing: '0.1em',
-                color: lineColor,
-                opacity: 0.4,
-                marginBottom: 16,
-              }}
-            >
-              DURATION
-            </div>
-            <DurationPicker
-              minutes={editDuration.mins}
-              seconds={editDuration.secs}
-              onChange={(mins, secs) => setEditDuration({ mins, secs })}
-              color={lineColor}
-            />
-          </div>
-        </div>
-        
-        {/* Delete Button */}
-        <div style={{ 
-          padding: '8px 16px 50px',
-          display: 'flex',
-          justifyContent: 'center',
-        }}>
-          <button
-            onClick={() => setShowDeleteConfirm(true)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              fontFamily: 'var(--font-sans, sans-serif)',
-              fontSize: 12,
-              fontWeight: 500,
-              letterSpacing: '0.08em',
-              color: '#e53935',
-              backgroundColor: 'transparent',
-              border: 'none',
-              padding: '12px 20px',
-              cursor: 'pointer',
-              opacity: 0.8,
-            }}
-          >
-            <Trash2 size={14} strokeWidth={2} />
-            DELETE RECORDING
-          </button>
-        </div>
-      </motion.div>
-    </>
-  );
-}
-
-// Reusable drag handle component
-function SheetDragHandle({ lineColor }: { lineColor: string }) {
-  return (
-    <div
-      style={{
-        width: 36,
-        height: 4,
-        backgroundColor: lineColor,
-        opacity: 0.2,
-        borderRadius: 2,
-        margin: '12px auto 8px',
-      }}
-    />
-  );
-}
-
-// Wavy border parameters (shared state for controls)
-const wavyBorderParams = {
-  amplitude: 0.6,
-  wavelength: 52, // pixels per wave cycle
-  speed: 0.05,
-  strokeWidth: 1,
-  strokeOpacity: 0.6,
-};
-
-// Animated wavy border for water broke entry
-function WavyBorder({ 
-  width, 
-  height, 
-  color, 
-  radius = 12,
-  params,
-}: { 
-  width: number; 
-  height: number; 
-  color: string;
-  radius?: number;
-  params: typeof wavyBorderParams;
-}) {
-  const [phase, setPhase] = useState(0);
-  
-  useEffect(() => {
-    let animationId: number;
-    const animate = () => {
-      setPhase(p => p + params.speed);
-      animationId = requestAnimationFrame(animate);
-    };
-    animationId = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(animationId);
-  }, [params.speed]);
-  
-  // Generate smooth wavy path around rounded rectangle
-  const generateWavyPath = useCallback(() => {
-    const { amplitude, wavelength } = params;
-    const freq = (2 * Math.PI) / wavelength;
-    const points: [number, number][] = [];
-    const inset = amplitude + 1; // Ensure waves don't clip
-    const r = Math.min(radius, (Math.min(width, height) - 2 * inset) / 2);
-    
-    // Calculate perimeter for consistent wave distribution
-    const straightTop = width - 2 * inset - 2 * r;
-    const straightSide = height - 2 * inset - 2 * r;
-    const cornerArc = (Math.PI * r) / 2;
-    
-    // Sample points along the entire perimeter
-    const totalLength = 2 * straightTop + 2 * straightSide + 4 * cornerArc;
-    const numPoints = Math.max(100, Math.ceil(totalLength / 2));
-    
-    for (let i = 0; i <= numPoints; i++) {
-      const t = i / numPoints;
-      const dist = t * totalLength;
-      const wave = Math.sin(phase + dist * freq) * amplitude;
-      
-      let x: number, y: number, nx: number, ny: number;
-      
-      // Top edge
-      if (dist < straightTop) {
-        const localT = dist / straightTop;
-        x = inset + r + localT * straightTop;
-        y = inset;
-        nx = 0; ny = -1;
-      }
-      // Top-right corner
-      else if (dist < straightTop + cornerArc) {
-        const localDist = dist - straightTop;
-        const angle = -Math.PI / 2 + (localDist / cornerArc) * (Math.PI / 2);
-        const cx = width - inset - r;
-        const cy = inset + r;
-        x = cx + Math.cos(angle) * r;
-        y = cy + Math.sin(angle) * r;
-        nx = Math.cos(angle); ny = Math.sin(angle);
-      }
-      // Right edge
-      else if (dist < straightTop + cornerArc + straightSide) {
-        const localDist = dist - straightTop - cornerArc;
-        const localT = localDist / straightSide;
-        x = width - inset;
-        y = inset + r + localT * straightSide;
-        nx = 1; ny = 0;
-      }
-      // Bottom-right corner
-      else if (dist < straightTop + 2 * cornerArc + straightSide) {
-        const localDist = dist - straightTop - cornerArc - straightSide;
-        const angle = 0 + (localDist / cornerArc) * (Math.PI / 2);
-        const cx = width - inset - r;
-        const cy = height - inset - r;
-        x = cx + Math.cos(angle) * r;
-        y = cy + Math.sin(angle) * r;
-        nx = Math.cos(angle); ny = Math.sin(angle);
-      }
-      // Bottom edge
-      else if (dist < 2 * straightTop + 2 * cornerArc + straightSide) {
-        const localDist = dist - straightTop - 2 * cornerArc - straightSide;
-        const localT = localDist / straightTop;
-        x = width - inset - r - localT * straightTop;
-        y = height - inset;
-        nx = 0; ny = 1;
-      }
-      // Bottom-left corner
-      else if (dist < 2 * straightTop + 3 * cornerArc + straightSide) {
-        const localDist = dist - 2 * straightTop - 2 * cornerArc - straightSide;
-        const angle = Math.PI / 2 + (localDist / cornerArc) * (Math.PI / 2);
-        const cx = inset + r;
-        const cy = height - inset - r;
-        x = cx + Math.cos(angle) * r;
-        y = cy + Math.sin(angle) * r;
-        nx = Math.cos(angle); ny = Math.sin(angle);
-      }
-      // Left edge
-      else if (dist < 2 * straightTop + 3 * cornerArc + 2 * straightSide) {
-        const localDist = dist - 2 * straightTop - 3 * cornerArc - straightSide;
-        const localT = localDist / straightSide;
-        x = inset;
-        y = height - inset - r - localT * straightSide;
-        nx = -1; ny = 0;
-      }
-      // Top-left corner
-      else {
-        const localDist = dist - 2 * straightTop - 3 * cornerArc - 2 * straightSide;
-        const angle = Math.PI + (localDist / cornerArc) * (Math.PI / 2);
-        const cx = inset + r;
-        const cy = inset + r;
-        x = cx + Math.cos(angle) * r;
-        y = cy + Math.sin(angle) * r;
-        nx = Math.cos(angle); ny = Math.sin(angle);
-      }
-      
-      // Apply wave displacement along normal
-      points.push([x + nx * wave, y + ny * wave]);
-    }
-    
-    // Build SVG path
-    if (points.length < 2) return '';
-    let path = `M ${points[0][0]} ${points[0][1]}`;
-    for (let i = 1; i < points.length; i++) {
-      path += ` L ${points[i][0]} ${points[i][1]}`;
-    }
-    path += ' Z';
-    
-    return path;
-  }, [width, height, radius, phase, params]);
-  
-  return (
-    <svg
-      style={{
-        position: 'absolute',
-        inset: -4,
-        width: 'calc(100% + 8px)',
-        height: 'calc(100% + 8px)',
-        pointerEvents: 'none',
-        overflow: 'visible',
-      }}
-      viewBox={`0 0 ${width} ${height}`}
-      preserveAspectRatio="none"
-    >
-      <path
-        d={generateWavyPath()}
-        fill="none"
-        stroke={color}
-        strokeWidth={params.strokeWidth}
-        strokeOpacity={params.strokeOpacity}
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-// Wavy border controls panel (press 'W' to toggle)
-function WavyBorderControls({
-  params,
-  setParams,
-  lineColor,
-  isNight,
-}: {
-  params: typeof wavyBorderParams;
-  setParams: (p: typeof wavyBorderParams) => void;
-  lineColor: string;
-  isNight: boolean;
-}) {
-  const controlStyle: React.CSSProperties = {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
-  };
-  
-  const labelStyle: React.CSSProperties = {
-    fontFamily: 'monospace',
-    fontSize: 10,
-    color: lineColor,
-    width: 100,
-  };
-  
-  const inputStyle: React.CSSProperties = {
-    width: 100,
-    accentColor: lineColor,
-  };
-  
-  const valueStyle: React.CSSProperties = {
-    fontFamily: 'monospace',
-    fontSize: 10,
-    color: lineColor,
-    width: 50,
-    textAlign: 'right',
-  };
-  
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 20 }}
-      style={{
-        position: 'fixed',
-        bottom: 20,
-        left: 20,
-        zIndex: 200,
-        backgroundColor: isNight ? 'rgba(0,0,0,0.9)' : 'rgba(255,255,255,0.95)',
-        padding: 16,
-        borderRadius: 12,
-        boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
-        maxHeight: '60vh',
-        overflowY: 'auto',
-      }}
-    >
-      <div style={{ 
-        fontFamily: 'monospace', 
-        fontSize: 11, 
-        color: lineColor, 
-        marginBottom: 12,
-        opacity: 0.5,
-      }}>
-        WAVY BORDER (W to close)
-      </div>
-      
-      <div style={controlStyle}>
-        <span style={labelStyle}>amplitude</span>
-        <input
-          type="range"
-          min="0.5"
-          max="5"
-          step="0.1"
-          value={params.amplitude}
-          onChange={(e) => setParams({ ...params, amplitude: parseFloat(e.target.value) })}
-          style={inputStyle}
-        />
-        <span style={valueStyle}>{params.amplitude.toFixed(1)}</span>
-      </div>
-      
-      <div style={controlStyle}>
-        <span style={labelStyle}>wavelength</span>
-        <input
-          type="range"
-          min="8"
-          max="60"
-          step="1"
-          value={params.wavelength}
-          onChange={(e) => setParams({ ...params, wavelength: parseFloat(e.target.value) })}
-          style={inputStyle}
-        />
-        <span style={valueStyle}>{params.wavelength.toFixed(0)}</span>
-      </div>
-      
-      <div style={controlStyle}>
-        <span style={labelStyle}>speed</span>
-        <input
-          type="range"
-          min="0.01"
-          max="0.15"
-          step="0.005"
-          value={params.speed}
-          onChange={(e) => setParams({ ...params, speed: parseFloat(e.target.value) })}
-          style={inputStyle}
-        />
-        <span style={valueStyle}>{params.speed.toFixed(3)}</span>
-      </div>
-      
-      <div style={controlStyle}>
-        <span style={labelStyle}>strokeWidth</span>
-        <input
-          type="range"
-          min="0.5"
-          max="2.5"
-          step="0.1"
-          value={params.strokeWidth}
-          onChange={(e) => setParams({ ...params, strokeWidth: parseFloat(e.target.value) })}
-          style={inputStyle}
-        />
-        <span style={valueStyle}>{params.strokeWidth.toFixed(1)}</span>
-      </div>
-      
-      <div style={controlStyle}>
-        <span style={labelStyle}>strokeOpacity</span>
-        <input
-          type="range"
-          min="0.1"
-          max="0.6"
-          step="0.02"
-          value={params.strokeOpacity}
-          onChange={(e) => setParams({ ...params, strokeOpacity: parseFloat(e.target.value) })}
-          style={inputStyle}
-        />
-        <span style={valueStyle}>{params.strokeOpacity.toFixed(2)}</span>
-      </div>
-    </motion.div>
-  );
-}
-
-// Birth wave controls panel (press 'B' on birth tab to toggle)
-function BirthWaveControls({
-  params,
-  setParams,
-  lineColor,
-  isNight,
-}: {
-  params: Partial<WaveParams>;
-  setParams: (p: Partial<WaveParams>) => void;
-  lineColor: string;
-  isNight: boolean;
-}) {
-  const controlStyle: React.CSSProperties = {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
-  };
-  
-  const labelStyle: React.CSSProperties = {
-    fontFamily: 'monospace',
-    fontSize: 10,
-    color: lineColor,
-    width: 100,
-  };
-  
-  const inputStyle: React.CSSProperties = {
-    width: 100,
-    accentColor: lineColor,
-  };
-  
-  const valueStyle: React.CSSProperties = {
-    fontFamily: 'monospace',
-    fontSize: 10,
-    color: lineColor,
-    width: 50,
-    textAlign: 'right',
-  };
-  
-  // Use defaults from the defaultWaveParams
-  const getVal = (key: keyof WaveParams) => params[key] ?? defaultWaveParams[key];
-  
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 20 }}
-      style={{
-        position: 'fixed',
-        bottom: 20,
-        left: 20,
-        zIndex: 200,
-        backgroundColor: isNight ? 'rgba(0,0,0,0.9)' : 'rgba(255,255,255,0.95)',
-        padding: 16,
-        borderRadius: 12,
-        boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
-        maxHeight: '70vh',
-        overflowY: 'auto',
-      }}
-    >
-      <div style={{ 
-        fontFamily: 'monospace', 
-        fontSize: 11, 
-        color: lineColor, 
-        marginBottom: 12,
-        opacity: 0.5,
-      }}>
-        BIRTH WAVES (B to close)
-      </div>
-      
-      <div style={controlStyle}>
-        <span style={labelStyle}>waviness</span>
-        <input
-          type="range"
-          min="0.5"
-          max="4"
-          step="0.1"
-          value={getVal('waviness')}
-          onChange={(e) => setParams({ ...params, waviness: parseFloat(e.target.value) })}
-          style={inputStyle}
-        />
-        <span style={valueStyle}>{(getVal('waviness') as number).toFixed(1)}</span>
-      </div>
-      
-      <div style={controlStyle}>
-        <span style={labelStyle}>flowSpeed</span>
-        <input
-          type="range"
-          min="0.01"
-          max="0.8"
-          step="0.01"
-          value={getVal('flowSpeed')}
-          onChange={(e) => setParams({ ...params, flowSpeed: parseFloat(e.target.value) })}
-          style={inputStyle}
-        />
-        <span style={valueStyle}>{(getVal('flowSpeed') as number).toFixed(2)}</span>
-      </div>
-      
-      <div style={controlStyle}>
-        <span style={labelStyle}>outerLooseness</span>
-        <input
-          type="range"
-          min="0.1"
-          max="0.8"
-          step="0.02"
-          value={getVal('outerLooseness')}
-          onChange={(e) => setParams({ ...params, outerLooseness: parseFloat(e.target.value) })}
-          style={inputStyle}
-        />
-        <span style={valueStyle}>{(getVal('outerLooseness') as number).toFixed(2)}</span>
-      </div>
-      
-      <div style={controlStyle}>
-        <span style={labelStyle}>innerTightness</span>
-        <input
-          type="range"
-          min="0.01"
-          max="0.1"
-          step="0.005"
-          value={getVal('innerTightness')}
-          onChange={(e) => setParams({ ...params, innerTightness: parseFloat(e.target.value) })}
-          style={inputStyle}
-        />
-        <span style={valueStyle}>{(getVal('innerTightness') as number).toFixed(3)}</span>
-      </div>
-      
-      <div style={controlStyle}>
-        <span style={labelStyle}>outerBlur</span>
-        <input
-          type="range"
-          min="1"
-          max="8"
-          step="0.5"
-          value={getVal('outerBlur')}
-          onChange={(e) => setParams({ ...params, outerBlur: parseFloat(e.target.value) })}
-          style={inputStyle}
-        />
-        <span style={valueStyle}>{(getVal('outerBlur') as number).toFixed(1)}</span>
-      </div>
-      
-      <div style={controlStyle}>
-        <span style={labelStyle}>lineCount</span>
-        <input
-          type="range"
-          min="5"
-          max="25"
-          step="1"
-          value={getVal('lineCount')}
-          onChange={(e) => setParams({ ...params, lineCount: parseInt(e.target.value) })}
-          style={inputStyle}
-        />
-        <span style={valueStyle}>{getVal('lineCount')}</span>
-      </div>
-      
-      <div style={controlStyle}>
-        <span style={labelStyle}>minRadius %</span>
-        <input
-          type="range"
-          min="10"
-          max="40"
-          step="1"
-          value={getVal('minRadiusPercent')}
-          onChange={(e) => setParams({ ...params, minRadiusPercent: parseInt(e.target.value) })}
-          style={inputStyle}
-        />
-        <span style={valueStyle}>{getVal('minRadiusPercent')}</span>
-      </div>
-      
-      <div style={controlStyle}>
-        <span style={labelStyle}>maxRadius %</span>
-        <input
-          type="range"
-          min="60"
-          max="95"
-          step="1"
-          value={getVal('maxRadiusPercent')}
-          onChange={(e) => setParams({ ...params, maxRadiusPercent: parseInt(e.target.value) })}
-          style={inputStyle}
-        />
-        <span style={valueStyle}>{getVal('maxRadiusPercent')}</span>
-      </div>
-      
-      <div style={{ ...controlStyle, marginTop: 12, paddingTop: 12, borderTop: `1px solid ${lineColor}20` }}>
-        <span style={{ ...labelStyle, fontWeight: 600 }}>timeScale</span>
-        <input
-          type="range"
-          min="0.5"
-          max="12"
-          step="0.5"
-          value={getVal('timeScale')}
-          onChange={(e) => setParams({ ...params, timeScale: parseFloat(e.target.value) })}
-          style={inputStyle}
-        />
-        <span style={valueStyle}>{(getVal('timeScale') as number).toFixed(1)}x</span>
-      </div>
-      
-      <button
-        onClick={() => setParams({})}
-        style={{
-          marginTop: 12,
-          padding: '8px 16px',
-          fontFamily: 'monospace',
-          fontSize: 10,
-          backgroundColor: `${lineColor}20`,
-          color: lineColor,
-          border: 'none',
-          borderRadius: 6,
-          cursor: 'pointer',
-        }}
-      >
-        RESET TO DEFAULTS
-      </button>
-    </motion.div>
-  );
-}
-
-// About Sheet - shows app info and legal pages
-interface AboutSheetProps {
-  onClose: () => void;
-  lineColor: string;
-  isNight: boolean;
-}
-
-type AboutSubPage = 'main' | 'howItWorks' | 'impressum' | 'privacy' | 'terms' | 'medical' | 'gdpr';
-
-function AboutSheet({ onClose, lineColor, isNight }: AboutSheetProps) {
-  const [activePage, setActivePage] = useState<AboutSubPage>('main');
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const bgColor = isNight ? 'rgba(0, 0, 0, 0.95)' : 'rgba(255, 255, 255, 0.98)';
-  
-  // Reset scroll position when page changes
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = 0;
-    }
-  }, [activePage]);
-  
-  // Share the app
-  const handleShare = useCallback(() => {
-    const shareData = {
-      title: 'Maay',
-      text: 'A calming companion for tracking contractions during labor',
-      url: 'https://maay.app',
-    };
-    
-    if (navigator.share) {
-      navigator.share(shareData);
-    } else if (navigator.clipboard) {
-      navigator.clipboard.writeText(`${shareData.text} - ${shareData.url}`);
-    }
-  }, []);
-  
-  const menuItems: { id: AboutSubPage; label: string; icon: React.ReactNode }[] = [
-    { id: 'howItWorks', label: 'How It Works', icon: <Sparkles size={18} /> },
-    { id: 'impressum', label: 'Legal Notice (Impressum)', icon: <Scale size={18} /> },
-    { id: 'privacy', label: 'Privacy Policy', icon: <Shield size={18} /> },
-    { id: 'terms', label: 'Terms of Service', icon: <FileText size={18} /> },
-    { id: 'medical', label: 'Medical Disclaimer', icon: <AlertTriangle size={18} /> },
-    { id: 'gdpr', label: 'Your Data (GDPR)', icon: <Database size={18} /> },
-  ];
-  
-  const renderContent = () => {
-    switch (activePage) {
-      case 'howItWorks':
-        return (
-          <div style={{ padding: '0 24px 50px', color: lineColor }}>
-            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 15, lineHeight: 1.7, marginBottom: 24, opacity: 0.8 }}>
-              Maay helps you track contractions during labor with a simple, calming interface designed to reduce stress.
-            </p>
-            
-            <h3 style={{ fontFamily: 'var(--font-sans, sans-serif)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', marginBottom: 12, opacity: 0.6 }}>TRACKING CONTRACTIONS</h3>
-            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.7, marginBottom: 20, opacity: 0.8 }}>
-              <strong>Tap anywhere</strong> on the screen when a contraction starts. Tap again when it ends. The app automatically calculates duration and intervals between contractions.
-            </p>
-            
-            <h3 style={{ fontFamily: 'var(--font-sans, sans-serif)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', marginBottom: 12, opacity: 0.6 }}>BREATHING GUIDE</h3>
-            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.7, marginBottom: 20, opacity: 0.8 }}>
-              During recording, the flowing rings and gentle prompts guide you through calming breaths. Follow the visual rhythm to help manage each wave.
-            </p>
-            
-            <h3 style={{ fontFamily: 'var(--font-sans, sans-serif)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', marginBottom: 12, opacity: 0.6 }}>PAIR WITH PARTNER</h3>
-            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.7, marginBottom: 20, opacity: 0.8 }}>
-              Share a 6-digit code with your partner so they can follow along in real-time from their own device. Both can track contractions together.
-            </p>
-            
-            <h3 style={{ fontFamily: 'var(--font-sans, sans-serif)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', marginBottom: 12, opacity: 0.6 }}>WATER BROKE</h3>
-            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.7, marginBottom: 20, opacity: 0.8 }}>
-              Mark when your water breaks from the menu. This timestamp is included when you export your data for healthcare providers.
-            </p>
-            
-            <h3 style={{ fontFamily: 'var(--font-sans, sans-serif)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', marginBottom: 12, opacity: 0.6 }}>EXPORT DATA</h3>
-            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.7, marginBottom: 20, opacity: 0.8 }}>
-              Share your contraction history via text, copy to clipboard, or download as a file to show your midwife or doctor.
-            </p>
-            
-            <h3 style={{ fontFamily: 'var(--font-sans, sans-serif)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', marginBottom: 12, opacity: 0.6 }}>BIRTH TAB</h3>
-            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.7, opacity: 0.8 }}>
-              When the moment arrives, switch to the Birth tab. The calming waves continue as you prepare to welcome your baby.
-            </p>
-          </div>
-        );
-        
-      case 'impressum':
-        return (
-          <div style={{ padding: '0 24px 50px', color: lineColor }}>
-            <h3 style={{ fontFamily: 'var(--font-sans, sans-serif)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', marginBottom: 16, opacity: 0.6 }}>ANGABEN GEMÄSS § 5 TMG</h3>
-            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 15, lineHeight: 1.7, marginBottom: 24, opacity: 0.8 }}>
-              Alap Shah<br />
-              13187 Berlin<br />
-              Germany
-            </p>
-            
-            <h3 style={{ fontFamily: 'var(--font-sans, sans-serif)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', marginBottom: 16, opacity: 0.6 }}>KONTAKT</h3>
-            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 15, lineHeight: 1.7, marginBottom: 24, opacity: 0.8 }}>
-              E-Mail: alaps@gmx.de
-            </p>
-            
-            <h3 style={{ fontFamily: 'var(--font-sans, sans-serif)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', marginBottom: 16, opacity: 0.6 }}>VERANTWORTLICH FÜR DEN INHALT</h3>
-            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 15, lineHeight: 1.7, marginBottom: 24, opacity: 0.8 }}>
-              Alap Shah<br />
-              13187 Berlin
-            </p>
-            
-            <h3 style={{ fontFamily: 'var(--font-sans, sans-serif)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', marginBottom: 16, opacity: 0.6 }}>EU-STREITSCHLICHTUNG</h3>
-            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.7, opacity: 0.8 }}>
-              Die Europäische Kommission stellt eine Plattform zur Online-Streitbeilegung (OS) bereit: https://ec.europa.eu/consumers/odr/. Wir sind nicht bereit oder verpflichtet, an Streitbeilegungsverfahren vor einer Verbraucherschlichtungsstelle teilzunehmen.
-            </p>
-          </div>
-        );
-        
-      case 'privacy':
-        return (
-          <div style={{ padding: '0 24px 50px', color: lineColor }}>
-            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.7, marginBottom: 24, opacity: 0.8, fontStyle: 'italic' }}>
-              Last updated: January 2026
-            </p>
-            
-            <h3 style={{ fontFamily: 'var(--font-sans, sans-serif)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', marginBottom: 12, opacity: 0.6 }}>DATA WE COLLECT</h3>
-            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.7, marginBottom: 20, opacity: 0.8 }}>
-              <strong>Contraction data:</strong> Start times, durations, and intervals are stored locally on your device. This data never leaves your device unless you explicitly export it or use the pairing feature.
-            </p>
-            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.7, marginBottom: 20, opacity: 0.8 }}>
-              <strong>Pairing feature:</strong> When you pair with a partner, contraction data is temporarily synced via Firebase Realtime Database. A random device ID and session code are generated—no personal information is collected.
-            </p>
-            
-            <h3 style={{ fontFamily: 'var(--font-sans, sans-serif)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', marginBottom: 12, opacity: 0.6 }}>DATA WE DO NOT COLLECT</h3>
-            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.7, marginBottom: 20, opacity: 0.8 }}>
-              We do not collect names, email addresses, location data, device information, analytics, or any other personal information. There are no cookies, no tracking, and no advertisements.
-            </p>
-            
-            <h3 style={{ fontFamily: 'var(--font-sans, sans-serif)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', marginBottom: 12, opacity: 0.6 }}>DATA STORAGE</h3>
-            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.7, marginBottom: 20, opacity: 0.8 }}>
-              All data is stored locally in your browser&apos;s storage. When using the pairing feature, data is temporarily stored on Firebase servers (Google Cloud, EU region) and is deleted when you unpair or clear your data.
-            </p>
-            
-            <h3 style={{ fontFamily: 'var(--font-sans, sans-serif)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', marginBottom: 12, opacity: 0.6 }}>YOUR RIGHTS</h3>
-            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.7, marginBottom: 20, opacity: 0.8 }}>
-              You can export all your data at any time using the Export feature. You can delete all your data using Clear Data in the menu. For questions, contact alaps@gmx.de.
-            </p>
-            
-            <h3 style={{ fontFamily: 'var(--font-sans, sans-serif)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', marginBottom: 12, opacity: 0.6 }}>THIRD-PARTY SERVICES</h3>
-            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.7, opacity: 0.8 }}>
-              Firebase Realtime Database (Google) is used only for the optional pairing feature. Vercel hosts this application. Neither service receives personal data from this app.
-            </p>
-          </div>
-        );
-        
-      case 'terms':
-        return (
-          <div style={{ padding: '0 24px 50px', color: lineColor }}>
-            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.7, marginBottom: 24, opacity: 0.8, fontStyle: 'italic' }}>
-              Last updated: January 2026
-            </p>
-            
-            <h3 style={{ fontFamily: 'var(--font-sans, sans-serif)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', marginBottom: 12, opacity: 0.6 }}>ACCEPTANCE OF TERMS</h3>
-            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.7, marginBottom: 20, opacity: 0.8 }}>
-              By using Maay, you agree to these terms. If you do not agree, please do not use the app.
-            </p>
-            
-            <h3 style={{ fontFamily: 'var(--font-sans, sans-serif)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', marginBottom: 12, opacity: 0.6 }}>SERVICE DESCRIPTION</h3>
-            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.7, marginBottom: 20, opacity: 0.8 }}>
-              Maay is a free contraction tracking tool provided as-is for informational purposes only. It is not a medical device and should not be used as a substitute for professional medical advice.
-            </p>
-            
-            <h3 style={{ fontFamily: 'var(--font-sans, sans-serif)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', marginBottom: 12, opacity: 0.6 }}>USER RESPONSIBILITIES</h3>
-            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.7, marginBottom: 20, opacity: 0.8 }}>
-              You are responsible for ensuring this app is appropriate for your needs. Always follow your healthcare provider&apos;s guidance regarding labor and delivery.
-            </p>
-            
-            <h3 style={{ fontFamily: 'var(--font-sans, sans-serif)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', marginBottom: 12, opacity: 0.6 }}>LIMITATION OF LIABILITY</h3>
-            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.7, marginBottom: 20, opacity: 0.8 }}>
-              This app is provided &quot;as is&quot; without warranties of any kind. The developer is not liable for any damages arising from the use of this app. Use at your own discretion.
-            </p>
-            
-            <h3 style={{ fontFamily: 'var(--font-sans, sans-serif)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', marginBottom: 12, opacity: 0.6 }}>CHANGES TO TERMS</h3>
-            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.7, opacity: 0.8 }}>
-              These terms may be updated from time to time. Continued use of the app constitutes acceptance of any changes.
-            </p>
-          </div>
-        );
-        
-      case 'medical':
-        return (
-          <div style={{ padding: '0 24px 50px', color: lineColor }}>
-            <div style={{ 
-              backgroundColor: isNight ? 'rgba(255,200,100,0.1)' : 'rgba(200,150,50,0.1)', 
-              padding: 16, 
-              borderRadius: 12, 
-              marginBottom: 24,
-              border: `1px solid ${isNight ? 'rgba(255,200,100,0.2)' : 'rgba(200,150,50,0.2)'}`
-            }}>
-              <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 15, lineHeight: 1.7, color: lineColor, fontWeight: 500 }}>
-                ⚠️ Maay is NOT a medical device. It does not provide medical advice, diagnosis, or treatment recommendations.
-              </p>
-            </div>
-            
-            <h3 style={{ fontFamily: 'var(--font-sans, sans-serif)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', marginBottom: 12, opacity: 0.6 }}>INFORMATIONAL USE ONLY</h3>
-            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.7, marginBottom: 20, opacity: 0.8 }}>
-              This app is designed to help you track contraction timing for informational purposes. It is a simple timer and logging tool—nothing more.
-            </p>
-            
-            <h3 style={{ fontFamily: 'var(--font-sans, sans-serif)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', marginBottom: 12, opacity: 0.6 }}>ALWAYS CONSULT HEALTHCARE PROVIDERS</h3>
-            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.7, marginBottom: 20, opacity: 0.8 }}>
-              Always follow your midwife&apos;s, doctor&apos;s, or healthcare provider&apos;s instructions. They know your specific medical situation. When in doubt, call your healthcare provider or go to the hospital.
-            </p>
-            
-            <h3 style={{ fontFamily: 'var(--font-sans, sans-serif)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', marginBottom: 12, opacity: 0.6 }}>EMERGENCY SITUATIONS</h3>
-            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.7, marginBottom: 20, opacity: 0.8 }}>
-              Do not rely on this app in medical emergencies. If you experience heavy bleeding, severe pain, reduced baby movement, or any other concerning symptoms, seek immediate medical attention.
-            </p>
-            
-            <h3 style={{ fontFamily: 'var(--font-sans, sans-serif)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', marginBottom: 12, opacity: 0.6 }}>NO WARRANTY OF ACCURACY</h3>
-            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.7, opacity: 0.8 }}>
-              The developer makes no guarantees about the accuracy of timing data. Technical issues, user error, or device problems may affect recorded times.
-            </p>
-          </div>
-        );
-        
-      case 'gdpr':
-        return (
-          <div style={{ padding: '0 24px 50px', color: lineColor }}>
-            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.7, marginBottom: 24, opacity: 0.8 }}>
-              Under the General Data Protection Regulation (GDPR), you have rights regarding your personal data.
-            </p>
-            
-            <h3 style={{ fontFamily: 'var(--font-sans, sans-serif)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', marginBottom: 12, opacity: 0.6 }}>YOUR DATA</h3>
-            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.7, marginBottom: 20, opacity: 0.8 }}>
-              Maay stores the following data locally on your device:
-            </p>
-            <ul style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.8, marginBottom: 20, opacity: 0.8, paddingLeft: 20 }}>
-              <li>Contraction start times and durations</li>
-              <li>Water broke timestamp (if recorded)</li>
-              <li>Pairing session code (if using pair feature)</li>
-              <li>Random device identifier (for pairing only)</li>
-            </ul>
-            
-            <h3 style={{ fontFamily: 'var(--font-sans, sans-serif)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', marginBottom: 12, opacity: 0.6 }}>RIGHT TO ACCESS (EXPORT)</h3>
-            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.7, marginBottom: 20, opacity: 0.8 }}>
-              You can export all your data at any time: Open the menu (three dots) → tap &quot;Export Data&quot; → choose your preferred format.
-            </p>
-            
-            <h3 style={{ fontFamily: 'var(--font-sans, sans-serif)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', marginBottom: 12, opacity: 0.6 }}>RIGHT TO ERASURE (DELETE)</h3>
-            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.7, marginBottom: 20, opacity: 0.8 }}>
-              You can delete all your data at any time: Open the menu (three dots) → tap &quot;Clear Data&quot; → confirm deletion. This removes all local data and any data synced to Firebase.
-            </p>
-            
-            <h3 style={{ fontFamily: 'var(--font-sans, sans-serif)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', marginBottom: 12, opacity: 0.6 }}>DATA PORTABILITY</h3>
-            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.7, marginBottom: 20, opacity: 0.8 }}>
-              The Export feature provides your data in a human-readable text format that can be shared with healthcare providers or saved for your records.
-            </p>
-            
-            <h3 style={{ fontFamily: 'var(--font-sans, sans-serif)', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', marginBottom: 12, opacity: 0.6 }}>CONTACT</h3>
-            <p style={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: 14, lineHeight: 1.7, opacity: 0.8 }}>
-              For any data-related questions or requests, contact: alaps@gmx.de
-            </p>
-          </div>
-        );
-        
-      default: // main
-        return (
-          <div style={{ padding: '0 24px 50px' }}>
-            {/* App Description */}
-            <p style={{ 
-              fontFamily: 'var(--font-serif, Georgia, serif)', 
-              fontSize: 15, 
-              lineHeight: 1.8, 
-              color: lineColor, 
-              opacity: 0.8,
-              marginBottom: 32,
-              textAlign: 'center',
-            }}>
-              I built Maay for my partner, though a little too late for us. I noticed a gap that no one was elegantly solving—a truly calming companion for one of life&apos;s most intense moments. There are many problems to solve in this journey, but I started with the first one. I hope it helps all mothers, and their partners who want to support them.
-            </p>
-            
-            {/* Menu Items */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {menuItems.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => setActivePage(item.id)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 12,
-                    padding: '16px 0',
-                    background: 'transparent',
-                    border: 'none',
-                    borderBottom: `1px solid ${lineColor}15`,
-                    cursor: 'pointer',
-                    width: '100%',
-                    textAlign: 'left',
-                  }}
-                >
-                  <span style={{ color: lineColor, opacity: 0.5 }}>{item.icon}</span>
-                  <span style={{ 
-                    flex: 1,
-                    fontFamily: 'var(--font-sans, sans-serif)', 
-                    fontSize: 14, 
-                    color: lineColor,
-                  }}>
-                    {item.label}
-                  </span>
-                  <ChevronRight size={16} style={{ color: lineColor, opacity: 0.3 }} />
-                </button>
-              ))}
-            </div>
-            
-            {/* Version */}
-            <p style={{ 
-              fontFamily: 'var(--font-sans, sans-serif)', 
-              fontSize: 11, 
-              color: lineColor, 
-              opacity: 0.3,
-              textAlign: 'center',
-              marginTop: 32,
-            }}>
-              Maay v1.0 · Made with love in Berlin
-            </p>
-          </div>
-        );
-    }
-  };
-  
-  const getPageTitle = () => {
-    switch (activePage) {
-      case 'howItWorks': return 'HOW IT WORKS';
-      case 'impressum': return 'LEGAL NOTICE';
-      case 'privacy': return 'PRIVACY POLICY';
-      case 'terms': return 'TERMS OF SERVICE';
-      case 'medical': return 'MEDICAL DISCLAIMER';
-      case 'gdpr': return 'YOUR DATA';
-      default: return 'ABOUT MAAY';
-    }
-  };
-  
-  return (
-    <>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        onClick={onClose}
-        style={{
-          position: 'fixed',
-          inset: 0,
-          backgroundColor: 'rgba(0,0,0,0.5)',
-          zIndex: 100,
-        }}
-      />
-      <motion.div
-        initial={{ y: '100%' }}
-        animate={{ y: 0 }}
-        exit={{ y: '100%' }}
-        drag="y"
-        dragConstraints={{ top: 0 }}
-        dragElastic={0.2}
-        onDragEnd={(_, info) => {
-          if (info.offset.y > 100) onClose();
-        }}
-        transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-        style={{
-          position: 'fixed',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          height: '80vh',
-          zIndex: 101,
-          backgroundColor: bgColor,
-          backdropFilter: 'blur(16px)',
-          WebkitBackdropFilter: 'blur(16px)',
-          borderTopLeftRadius: 20,
-          borderTopRightRadius: 20,
-          display: 'flex',
-          flexDirection: 'column',
-        }}
-      >
-        <SheetDragHandle lineColor={lineColor} />
-        
-        {/* Header */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          padding: '4px 20px 12px',
-          borderBottom: `1px solid ${lineColor}10`,
-        }}>
-          {/* Left button - Close or Back */}
-          {activePage !== 'main' ? (
-            <button
-              onClick={() => setActivePage('main')}
-              style={{
-                width: 32,
-                height: 32,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: 'transparent',
-                border: 'none',
-                cursor: 'pointer',
-                color: lineColor,
-                opacity: 0.6,
-              }}
-              aria-label="Back"
-            >
-              <ChevronLeft size={18} />
-            </button>
-          ) : (
-            <button
-              onClick={onClose}
-              style={{
-                width: 32,
-                height: 32,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: 'transparent',
-                border: 'none',
-                cursor: 'pointer',
-                color: lineColor,
-                opacity: 0.6,
-              }}
-              aria-label="Close"
-            >
-              <X size={18} strokeWidth={2} />
-            </button>
-          )}
-          
-          {/* Title */}
-          <span style={{
-            flex: 1,
-            textAlign: 'center',
-            fontFamily: 'var(--font-sans, sans-serif)',
-            fontSize: 12,
-            fontWeight: 500,
-            letterSpacing: '0.1em',
-            color: lineColor,
-          }}>
-            {getPageTitle()}
-          </span>
-          
-          {/* Right button - Share (only on main page) */}
-          {activePage === 'main' ? (
-            <button
-              onClick={handleShare}
-              style={{
-                width: 32,
-                height: 32,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: 'transparent',
-                border: 'none',
-                cursor: 'pointer',
-                color: lineColor,
-              }}
-              aria-label="Share app"
-            >
-              <Share size={16} strokeWidth={2} />
-            </button>
-          ) : (
-            <div style={{ width: 32 }} />
-          )}
-        </div>
-        
-        {/* Content */}
-        <div 
-          ref={scrollRef}
-          style={{ 
-            flex: 1, 
-            overflowY: 'auto', 
-            paddingTop: 20,
-          }}
-        >
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={activePage}
-              initial={{ opacity: 0, x: activePage === 'main' ? -20 : 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: activePage === 'main' ? 20 : -20 }}
-              transition={{ duration: 0.2 }}
-            >
-              {renderContent()}
-            </motion.div>
-          </AnimatePresence>
-        </div>
-      </motion.div>
-    </>
-  );
-}
-
-// Menu Sheet - shows options for manual entry
-interface MenuSheetProps {
-  onClose: () => void;
-  onWaterBroke: () => void;
-  onExport: () => void;
-  onPairPartner: () => void;
-  onClearAll: () => void;
-  lineColor: string;
-  isNight: boolean;
-}
-
-function MenuSheet({
-  onClose,
-  onWaterBroke,
-  onExport,
-  onPairPartner,
-  onClearAll,
-  lineColor,
-  isNight,
-}: MenuSheetProps) {
-  const [showClearConfirm, setShowClearConfirm] = useState(false);
-  
-  return (
-    <>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        onClick={onClose}
-        style={{
-          position: 'fixed',
-          inset: 0,
-          backgroundColor: 'rgba(0,0,0,0.5)',
-          zIndex: 100,
-        }}
-      />
-      <motion.div
-        initial={{ y: '100%' }}
-        animate={{ y: 0 }}
-        exit={{ y: '100%' }}
-        drag="y"
-        dragConstraints={{ top: 0 }}
-        dragElastic={0.2}
-        onDragEnd={(_, info) => {
-          if (info.offset.y > 100) onClose();
-        }}
-        transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-        style={{
-          position: 'fixed',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          zIndex: 101,
-          backgroundColor: isNight ? 'rgba(0, 0, 0, 0.9)' : 'rgba(255, 255, 255, 0.95)',
-          backdropFilter: 'blur(16px)',
-          WebkitBackdropFilter: 'blur(16px)',
-          borderTopLeftRadius: 20,
-          borderTopRightRadius: 20,
-        }}
-      >
-        <SheetDragHandle lineColor={lineColor} />
-        
-        {/* Clear All Confirmation Sheet */}
-        <AnimatePresence>
-          {showClearConfirm && (
-            <>
-              {/* Backdrop */}
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                onClick={() => setShowClearConfirm(false)}
-                style={{
-                  position: 'fixed',
-                  inset: 0,
-                  backgroundColor: 'rgba(0,0,0,0.5)',
-                  zIndex: 200,
-                }}
-              />
-              {/* Confirmation Sheet */}
-              <motion.div
-                initial={{ y: '100%' }}
-                animate={{ y: 0 }}
-                exit={{ y: '100%' }}
-                transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-                style={{
-                  position: 'fixed',
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  zIndex: 201,
-                  backgroundColor: isNight ? 'rgba(0, 0, 0, 0.95)' : 'rgba(255, 255, 255, 0.98)',
-                  backdropFilter: 'blur(16px)',
-                  WebkitBackdropFilter: 'blur(16px)',
-                  borderTopLeftRadius: 20,
-                  borderTopRightRadius: 20,
-                  padding: '12px 24px 40px',
-                }}
-              >
-                <SheetDragHandle lineColor={lineColor} />
-                
-                <div style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: 20,
-                  paddingTop: 16,
-                }}>
-                  <span
-                    style={{
-                      fontFamily: 'var(--font-sans, sans-serif)',
-                      fontSize: 12,
-                      fontWeight: 500,
-                      letterSpacing: '0.1em',
-                      color: lineColor,
-                    }}
-                  >
-                    CLEAR DATA
-                  </span>
-                  
-                  <span
-                    style={{
-                      fontFamily: 'var(--font-serif, Georgia, serif)',
-                      fontSize: 16,
-                      fontStyle: 'italic',
-                      color: lineColor,
-                      opacity: 0.6,
-                      textAlign: 'center',
-                      maxWidth: 280,
-                    }}
-                  >
-                    This will remove all recorded contractions. This cannot be undone.
-                  </span>
-                  
-                  <div style={{ display: 'flex', gap: 16, marginTop: 8 }}>
-                    <button
-                      onClick={() => setShowClearConfirm(false)}
-                      style={{
-                        fontFamily: 'var(--font-sans, sans-serif)',
-                        fontSize: 12,
-                        fontWeight: 500,
-                        letterSpacing: '0.08em',
-                        color: lineColor,
-                        backgroundColor: `${lineColor}10`,
-                        border: 'none',
-                        padding: '12px 24px',
-                        borderRadius: 50,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      CANCEL
-                    </button>
-                    <button
-                      onClick={() => {
-                        onClearAll();
-                        onClose();
-                      }}
-                      style={{
-                        fontFamily: 'var(--font-sans, sans-serif)',
-                        fontSize: 12,
-                        fontWeight: 500,
-                        letterSpacing: '0.08em',
-                        color: '#fff',
-                        backgroundColor: '#e53935',
-                        border: 'none',
-                        padding: '12px 24px',
-                        borderRadius: 50,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      CLEAR ALL
-                    </button>
-                  </div>
-                </div>
-              </motion.div>
-            </>
-          )}
-        </AnimatePresence>
-        
-        <div style={{ 
-          padding: '20px 16px 40px',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: 4,
-        }}>
-          {/* Water Broke */}
-          <button
-            onClick={() => {
-              onClose();
-              onWaterBroke();
-            }}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 10,
-              padding: '14px 24px',
-              background: 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-            }}
-          >
-            <Droplets size={16} strokeWidth={2} color={lineColor} />
-            <span
-              style={{
-                fontFamily: 'var(--font-sans, sans-serif)',
-                fontSize: 12,
-                fontWeight: 500,
-                letterSpacing: '0.1em',
-                color: lineColor,
-              }}
-            >
-              WATER BROKE
-            </span>
-          </button>
-          
-          {/* Pair with Partner */}
-          <button
-            onClick={() => {
-              onClose();
-              onPairPartner();
-            }}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 10,
-              padding: '14px 24px',
-              background: 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-            }}
-          >
-            <Users size={16} strokeWidth={2} color={lineColor} />
-            <span
-              style={{
-                fontFamily: 'var(--font-sans, sans-serif)',
-                fontSize: 12,
-                fontWeight: 500,
-                letterSpacing: '0.1em',
-                color: lineColor,
-              }}
-            >
-              PAIR WITH PARTNER
-            </span>
-          </button>
-          
-          {/* Export Data */}
-          <button
-            onClick={() => {
-              onClose();
-              onExport();
-            }}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 10,
-              padding: '14px 24px',
-              background: 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-            }}
-          >
-            <ArrowUpFromLine size={16} strokeWidth={2} color={lineColor} />
-            <span
-              style={{
-                fontFamily: 'var(--font-sans, sans-serif)',
-                fontSize: 12,
-                fontWeight: 500,
-                letterSpacing: '0.1em',
-                color: lineColor,
-              }}
-            >
-              EXPORT DATA
-            </span>
-          </button>
-          
-          {/* Clear Data */}
-          <button
-            onClick={() => setShowClearConfirm(true)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 10,
-              padding: '14px 24px',
-              background: 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-              opacity: 0.5,
-            }}
-          >
-            <ListX size={16} strokeWidth={2} color={lineColor} />
-            <span
-              style={{
-                fontFamily: 'var(--font-sans, sans-serif)',
-                fontSize: 12,
-                fontWeight: 500,
-                letterSpacing: '0.1em',
-                color: lineColor,
-              }}
-            >
-              CLEAR DATA
-            </span>
-          </button>
-        </div>
-      </motion.div>
-    </>
-  );
-}
-
-// Pair with Partner Sheet
-interface PairSheetProps {
-  onClose: () => void;
-  lineColor: string;
-  bgColor: string;
-  isNight: boolean;
-  pairSession: ReturnType<typeof usePairSession>;
-}
-
-function PairSheet({
-  onClose,
-  lineColor,
-  bgColor,
-  isNight,
-  pairSession,
-}: PairSheetProps) {
-  const {
-    isConnected,
-    sessionCode,
-    myCode,
-    createMySession,
-    joinPartnerSession,
-    leaveSession,
-    isSyncing,
-  } = pairSession;
-  
-  const [partnerCode, setPartnerCode] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [showSuccess, setShowSuccess] = useState(false);
-  const hasCreatedSession = useRef(false);
-  
-  // Reset hasCreatedSession when sessionCode becomes null (after unpair)
-  useEffect(() => {
-    if (!sessionCode) {
-      hasCreatedSession.current = false;
-    }
-  }, [sessionCode]);
-  
-  // Create session when sheet opens (so code is ready to share) - only once per session
-  useEffect(() => {
-    if (!hasCreatedSession.current && !isConnected && !sessionCode && myCode) {
-      hasCreatedSession.current = true;
-      createMySession();
-    }
-  }, [isConnected, sessionCode, myCode, createMySession]);
-  
-  const handleShare = useCallback(() => {
-    const codeToShare = sessionCode || myCode;
-    if (navigator.share) {
-      navigator.share({
-        title: 'Join me on MAAY',
-        text: `Use code ${codeToShare} to track contractions together`,
-      });
-    } else if (navigator.clipboard) {
-      navigator.clipboard.writeText(codeToShare);
-    }
-  }, [sessionCode, myCode]);
-  
-  const handleJoin = useCallback(async () => {
-    if (partnerCode.length !== 6) return;
-    
-    setError(null);
-    const success = await joinPartnerSession(partnerCode);
-    
-    if (success) {
-      setShowSuccess(true);
-      // Don't auto-close - the UI will update to show "PAIRED" state
-    } else {
-      setError('Invalid or expired code');
-    }
-  }, [partnerCode, joinPartnerSession]);
-  
-  return (
-    <>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        onClick={onClose}
-        style={{
-          position: 'fixed',
-          inset: 0,
-          backgroundColor: 'rgba(0,0,0,0.5)',
-          zIndex: 100,
-        }}
-      />
-      <motion.div
-        initial={{ y: '100%' }}
-        animate={{ y: 0 }}
-        exit={{ y: '100%' }}
-        drag="y"
-        dragConstraints={{ top: 0 }}
-        dragElastic={0.2}
-        onDragEnd={(_, info) => {
-          if (info.offset.y > 100) onClose();
-        }}
-        transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-        style={{
-          position: 'fixed',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          zIndex: 101,
-          backgroundColor: isNight ? 'rgba(0, 0, 0, 0.9)' : 'rgba(255, 255, 255, 0.95)',
-          backdropFilter: 'blur(16px)',
-          WebkitBackdropFilter: 'blur(16px)',
-          borderTopLeftRadius: 20,
-          borderTopRightRadius: 20,
-        }}
-      >
-        {/* Header */}
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            padding: '16px 20px 12px',
-          }}
-        >
-          {/* Close button */}
-          <button
-            onClick={onClose}
-            style={{
-              width: 32,
-              height: 32,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-              color: lineColor,
-              opacity: 0.6,
-            }}
-            aria-label="Close"
-          >
-            <X size={18} strokeWidth={2} />
-          </button>
-          
-          {/* Title */}
-          <span
-            style={{
-              fontFamily: 'var(--font-sans, sans-serif)',
-              fontSize: 12,
-              fontWeight: 500,
-              letterSpacing: '0.1em',
-              color: lineColor,
-            }}
-          >
-            PAIR WITH PARTNER
-          </span>
-          
-          {/* Share button */}
-          <button
-            onClick={handleShare}
-            style={{
-              width: 32,
-              height: 32,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-              color: lineColor,
-            }}
-            aria-label="Share code"
-          >
-            <Share size={16} strokeWidth={2} />
-          </button>
-        </div>
-        
-        {/* Content */}
-        <div style={{ 
-          padding: '8px 32px 40px',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: 24,
-        }}>
-          {/* Session Code Section */}
-          <div style={{ textAlign: 'center' }}>
-            <span
-              style={{
-                fontFamily: 'var(--font-sans, sans-serif)',
-                fontSize: 11,
-                fontWeight: 500,
-                letterSpacing: '0.12em',
-                color: lineColor,
-                opacity: 0.4,
-                display: 'block',
-              }}
-            >
-              {isConnected ? 'PAIRED' : 'SESSION CODE'}
-              {isConnected && <span style={{ opacity: 0.6, fontSize: 9, marginLeft: 6 }}>• SYNCING</span>}
-              {!isConnected && sessionCode && <span style={{ opacity: 0.6, fontSize: 9, marginLeft: 6 }}>• READY</span>}
-            </span>
-            
-            <div
-              style={{
-                fontFamily: 'var(--font-mono, monospace)',
-                fontSize: 28,
-                fontWeight: 600,
-                letterSpacing: '0.25em',
-                color: lineColor,
-                padding: '16px 28px',
-                backgroundColor: `${lineColor}08`,
-                borderRadius: 12,
-                marginTop: -12,
-                marginBottom: -24,
-                position: 'relative',
-              }}
-            >
-              {isSyncing || !myCode ? '...' : (sessionCode || myCode)}
-            </div>
-          </div>
-          
-          {isConnected ? (
-            // Joined partner's session - show unpair option
-            <>
-              <p style={{
-                fontFamily: 'var(--font-sans, sans-serif)',
-                fontSize: 12,
-                color: lineColor,
-                opacity: 0.5,
-                textAlign: 'center',
-                lineHeight: 1.6,
-                maxWidth: 240,
-              }}>
-                Contractions sync automatically between paired devices
-              </p>
-              
-              <motion.button
-                onClick={() => leaveSession()}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                style={{
-                  fontFamily: 'var(--font-sans, sans-serif)',
-                  fontSize: 12,
-                  fontWeight: 600,
-                  letterSpacing: '0.15em',
-                  color: '#e53935',
-                  backgroundColor: 'transparent',
-                  border: `1px solid #e5393530`,
-                  padding: '14px 40px',
-                  borderRadius: 50,
-                  cursor: 'pointer',
-                }}
-              >
-                UNPAIR
-              </motion.button>
-            </>
-          ) : (
-            // Not paired yet - show share code + join option
-            <>
-              <p style={{
-                fontFamily: 'var(--font-sans, sans-serif)',
-                fontSize: 11,
-                color: lineColor,
-                opacity: 0.4,
-                textAlign: 'center',
-                maxWidth: 220,
-                lineHeight: 1.5,
-              }}>
-                Share your code with partner, or enter their code below
-              </p>
-              
-              {/* Divider */}
-              <div
-                style={{
-                  width: '100%',
-                  maxWidth: 240,
-                  height: 1,
-                  backgroundColor: `${lineColor}20`,
-                }}
-              />
-              
-              {/* Partner Code Section */}
-              <div style={{ 
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                width: '100%', 
-                maxWidth: 280,
-              }}>
-                <span
-                  style={{
-                    fontFamily: 'var(--font-sans, sans-serif)',
-                    fontSize: 11,
-                    fontWeight: 500,
-                    letterSpacing: '0.12em',
-                    color: lineColor,
-                    opacity: 0.4,
-                    display: 'block',
-                    marginBottom: 8,
-                  }}
-                >
-                  PARTNER'S CODE
-                </span>
-                
-                {showSuccess ? (
-                  <div style={{ padding: '20px 0' }}>
-                    <Check size={32} color={lineColor} style={{ opacity: 0.8 }} />
-                    <p style={{
-                      fontFamily: 'var(--font-sans, sans-serif)',
-                      fontSize: 12,
-                      color: lineColor,
-                      opacity: 0.6,
-                      marginTop: 8,
-                    }}>
-                      Connected!
-                    </p>
-                  </div>
-                ) : (
-                  <>
-                    <input
-                      type="text"
-                      value={partnerCode}
-                      onChange={(e) => {
-                        setPartnerCode(e.target.value.toUpperCase().slice(0, 6));
-                        setError(null);
-                      }}
-                      placeholder="XXXXXX"
-                      maxLength={6}
-                      style={{
-                        fontFamily: 'var(--font-mono, monospace)',
-                        fontSize: 24,
-                        fontWeight: 600,
-                        letterSpacing: '0.25em',
-                        color: lineColor,
-                        padding: '14px 20px',
-                        backgroundColor: `${lineColor}05`,
-                        border: `1px solid ${error ? '#e53935' : `${lineColor}15`}`,
-                        borderRadius: 12,
-                        textAlign: 'center',
-                        width: '100%',
-                        maxWidth: 180,
-                        outline: 'none',
-                      }}
-                    />
-                    
-                    {error && (
-                      <p style={{
-                        fontFamily: 'var(--font-sans, sans-serif)',
-                        fontSize: 11,
-                        color: '#e53935',
-                        marginTop: 8,
-                      }}>
-                        {error}
-                      </p>
-                    )}
-                    
-                    <motion.button
-                      onClick={handleJoin}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      disabled={partnerCode.length !== 6 || isSyncing}
-                      style={{
-                        marginTop: 16,
-                        fontFamily: 'var(--font-sans, sans-serif)',
-                        fontSize: 12,
-                        fontWeight: 600,
-                        letterSpacing: '0.15em',
-                        color: partnerCode.length === 6 ? bgColor : lineColor,
-                        backgroundColor: partnerCode.length === 6 ? lineColor : 'transparent',
-                        border: partnerCode.length === 6 ? 'none' : `1px solid ${lineColor}20`,
-                        padding: '14px 40px',
-                        borderRadius: 50,
-                        cursor: partnerCode.length === 6 ? 'pointer' : 'not-allowed',
-                        opacity: partnerCode.length === 6 ? 1 : 0.3,
-                      }}
-                    >
-                      {isSyncing ? '...' : 'JOIN'}
-                    </motion.button>
-                  </>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-      </motion.div>
-    </>
-  );
-}
-
-// Export Sheet - for exporting/sharing contraction data
-interface ExportSheetProps {
-  onClose: () => void;
-  contractions: Array<{
-    id: string;
-    startTime: number;
-    duration: number | null;
-    type?: 'contraction' | 'water_broke';
-  }>;
-  lineColor: string;
-  isNight: boolean;
-}
-
-type ExportCount = 10 | 20 | 50 | 'all';
-
-function ExportSheet({
-  onClose,
-  contractions,
-  lineColor,
-  isNight,
-}: ExportSheetProps) {
-  const [selectedCount, setSelectedCount] = useState<ExportCount | null>(null);
-  const [isSharing, setIsSharing] = useState(false);
-  
-  const formatDuration = (seconds: number | null) => {
-    if (!seconds) return '-';
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    if (mins > 0) {
-      return secs > 0 ? `${mins}m ${secs}s` : `${mins}m`;
-    }
-    return `${secs}s`;
-  };
-  
-  const formatTime = (timestamp: number) => {
-    return new Date(timestamp).toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-    });
-  };
-  
-  const generateExportText = (count: ExportCount) => {
-    const entriesToExport = count === 'all' 
-      ? contractions 
-      : contractions.slice(0, count);
-    
-    const lines = ['CONTRACTION TRACKING REPORT', ''];
-    lines.push(`Generated: ${new Date().toLocaleString()}`);
-    lines.push(`Total entries: ${entriesToExport.length}`);
-    lines.push('');
-    lines.push('---');
-    lines.push('');
-    
-    entriesToExport.forEach((entry, index) => {
-      if (entry.type === 'water_broke') {
-        lines.push(`${index + 1}. WATER BROKE`);
-        lines.push(`   Time: ${formatTime(entry.startTime)}`);
-      } else {
-        lines.push(`${index + 1}. Contraction`);
-        lines.push(`   Time: ${formatTime(entry.startTime)}`);
-        lines.push(`   Duration: ${formatDuration(entry.duration)}`);
-      }
-      lines.push('');
-    });
-    
-    return lines.join('\n');
-  };
-  
-  const handleExport = async (count: ExportCount) => {
-    setSelectedCount(count);
-    setIsSharing(true);
-    
-    const exportText = generateExportText(count);
-    
-    // Try native share API first
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: 'Contraction Tracking Report',
-          text: exportText,
-        });
-        onClose();
-      } catch (err) {
-        // User cancelled or share failed, try download
-        downloadAsFile(exportText);
-      }
-    } else {
-      // Fallback to download
-      downloadAsFile(exportText);
-    }
-    
-    setIsSharing(false);
-  };
-  
-  const downloadAsFile = (text: string) => {
-    const blob = new Blob([text], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `contractions-${new Date().toISOString().split('T')[0]}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    onClose();
-  };
-  
-  const countOptions: { value: ExportCount; label: string }[] = [
-    { value: 10, label: 'LAST 10 ENTRIES' },
-    { value: 20, label: 'LAST 20 ENTRIES' },
-    { value: 50, label: 'LAST 50 ENTRIES' },
-    { value: 'all', label: `ALL ENTRIES (${contractions.length})` },
-  ];
-  
-  return (
-    <>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        onClick={onClose}
-        style={{
-          position: 'fixed',
-          inset: 0,
-          backgroundColor: 'rgba(0,0,0,0.5)',
-          zIndex: 100,
-        }}
-      />
-      <motion.div
-        initial={{ y: '100%' }}
-        animate={{ y: 0 }}
-        exit={{ y: '100%' }}
-        drag="y"
-        dragConstraints={{ top: 0 }}
-        dragElastic={0.2}
-        onDragEnd={(_, info) => {
-          if (info.offset.y > 100) onClose();
-        }}
-        transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-        style={{
-          position: 'fixed',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          zIndex: 101,
-          backgroundColor: isNight ? 'rgba(0, 0, 0, 0.95)' : 'rgba(255, 255, 255, 0.98)',
-          backdropFilter: 'blur(16px)',
-          WebkitBackdropFilter: 'blur(16px)',
-          borderTopLeftRadius: 20,
-          borderTopRightRadius: 20,
-        }}
-      >
-        <SheetDragHandle lineColor={lineColor} />
-        
-        {/* Header */}
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            padding: '4px 16px 12px',
-          }}
-        >
-          <button
-            onClick={onClose}
-            style={{
-              width: 32,
-              height: 32,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: `${lineColor}10`,
-              border: 'none',
-              borderRadius: '50%',
-              cursor: 'pointer',
-              color: lineColor,
-              opacity: 0.6,
-            }}
-            aria-label="Cancel"
-          >
-            <X size={16} strokeWidth={2} />
-          </button>
-          
-          <span
-            style={{
-              fontFamily: 'var(--font-sans, sans-serif)',
-              fontSize: 12,
-              fontWeight: 500,
-              letterSpacing: '0.1em',
-              color: lineColor,
-            }}
-          >
-            EXPORT DATA
-          </span>
-          
-          {/* Empty space for balance */}
-          <div style={{ width: 32 }} />
-        </div>
-        
-        {/* Subtitle */}
-        <div style={{ textAlign: 'center', marginBottom: 16 }}>
-          <span
-            style={{
-              fontFamily: 'var(--font-serif, Georgia, serif)',
-              fontSize: 16,
-              fontStyle: 'italic',
-              color: lineColor,
-              opacity: 0.6,
-            }}
-          >
-            Choose how many entries to export
-          </span>
-        </div>
-        
-        {/* Options - only show options that are possible */}
-        <div style={{ 
-          padding: '8px 16px 40px',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: 8,
-        }}>
-          {countOptions
-            .filter((option) => option.value === 'all' || contractions.length >= option.value)
-            .map((option) => (
-            <button
-              key={option.value}
-              onClick={() => handleExport(option.value)}
-              disabled={isSharing}
-              style={{
-                width: '100%',
-                maxWidth: 280,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 10,
-                padding: '14px 24px',
-                background: selectedCount === option.value ? `${lineColor}15` : `${lineColor}08`,
-                border: 'none',
-                borderRadius: 12,
-                cursor: 'pointer',
-              }}
-            >
-              <span
-                style={{
-                  fontFamily: 'var(--font-sans, sans-serif)',
-                  fontSize: 12,
-                  fontWeight: 500,
-                  letterSpacing: '0.1em',
-                  color: lineColor,
-                }}
-              >
-                {option.label}
-              </span>
-            </button>
-          ))}
-        </div>
-      </motion.div>
-    </>
-  );
-}
-
-// Add Contraction Sheet - for manual entry
-interface AddSheetProps {
-  onClose: () => void;
-  onAdd: (startTime: number, duration: number) => void;
-  lineColor: string;
-  isNight: boolean;
-}
-
-function AddContractionSheet({
-  onClose,
-  onAdd,
-  lineColor,
-  isNight,
-}: AddSheetProps) {
-  const now = new Date();
-  const [addDuration, setAddDuration] = useState({ mins: 1, secs: 0 });
-  const [addTime, setAddTime] = useState({
-    hours: now.getHours(),
-    minutes: now.getMinutes(),
-  });
-  
-  const handleAdd = () => {
-    const date = new Date();
-    date.setHours(addTime.hours);
-    date.setMinutes(addTime.minutes);
-    date.setSeconds(0);
-    
-    const durationSecs = addDuration.mins * 60 + addDuration.secs;
-    onAdd(date.getTime(), durationSecs);
-    onClose();
-  };
-  
-  return (
-    <>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        onClick={onClose}
-        style={{
-          position: 'fixed',
-          inset: 0,
-          backgroundColor: 'rgba(0,0,0,0.5)',
-          zIndex: 100,
-        }}
-      />
-      <motion.div
-        initial={{ y: '100%' }}
-        animate={{ y: 0 }}
-        exit={{ y: '100%' }}
-        drag="y"
-        dragConstraints={{ top: 0 }}
-        dragElastic={0.2}
-        onDragEnd={(_, info) => {
-          if (info.offset.y > 100) onClose();
-        }}
-        transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-        style={{
-          position: 'fixed',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          zIndex: 101,
-          backgroundColor: isNight ? 'rgba(0, 0, 0, 0.9)' : 'rgba(255, 255, 255, 0.95)',
-          backdropFilter: 'blur(16px)',
-          WebkitBackdropFilter: 'blur(16px)',
-          borderTopLeftRadius: 20,
-          borderTopRightRadius: 20,
-        }}
-      >
-        <SheetDragHandle lineColor={lineColor} />
-        
-        {/* Header */}
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            padding: '4px 16px 12px',
-          }}
-        >
-          <button
-            onClick={onClose}
-            style={{
-              width: 32,
-              height: 32,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: `${lineColor}10`,
-              border: 'none',
-              borderRadius: '50%',
-              cursor: 'pointer',
-              color: lineColor,
-              opacity: 0.6,
-            }}
-            aria-label="Cancel"
-          >
-            <X size={16} strokeWidth={2} />
-          </button>
-          
-          <span
-            style={{
-              fontFamily: 'var(--font-sans, sans-serif)',
-              fontSize: 12,
-              fontWeight: 500,
-              letterSpacing: '0.1em',
-              color: lineColor,
-            }}
-          >
-            RECORD CONTRACTION
-          </span>
-          
-          <button
-            onClick={handleAdd}
-            style={{
-              width: 32,
-              height: 32,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: lineColor,
-              border: 'none',
-              borderRadius: '50%',
-              cursor: 'pointer',
-              color: isNight ? '#000' : '#fff',
-            }}
-            aria-label="Add"
-          >
-            <Check size={16} strokeWidth={2.5} />
-          </button>
-        </div>
-        
-        {/* Content */}
-        <div style={{ 
-          padding: '24px 16px 50px',
-          display: 'flex',
-          justifyContent: 'center',
-          gap: 48,
-        }}>
-          <div style={{ textAlign: 'center' }}>
-            <div
-              style={{
-                fontFamily: 'var(--font-sans, sans-serif)',
-                fontSize: 9,
-                fontWeight: 500,
-                letterSpacing: '0.1em',
-                color: lineColor,
-                opacity: 0.4,
-                marginBottom: 16,
-              }}
-            >
-              TIME
-            </div>
-            <TimePicker
-              hours={addTime.hours}
-              minutes={addTime.minutes}
-              onChange={(hours, minutes) => setAddTime({ hours, minutes })}
-              color={lineColor}
-            />
-          </div>
-          
-          <div style={{ textAlign: 'center' }}>
-            <div
-              style={{
-                fontFamily: 'var(--font-sans, sans-serif)',
-                fontSize: 9,
-                fontWeight: 500,
-                letterSpacing: '0.1em',
-                color: lineColor,
-                opacity: 0.4,
-                marginBottom: 16,
-              }}
-            >
-              DURATION
-            </div>
-            <DurationPicker
-              minutes={addDuration.mins}
-              seconds={addDuration.secs}
-              onChange={(mins, secs) => setAddDuration({ mins, secs })}
-              color={lineColor}
-            />
-          </div>
-        </div>
-      </motion.div>
-    </>
-  );
-}
-
-// Water Broke Sheet - for adding or editing
-interface WaterBrokeSheetProps {
-  onClose: () => void;
-  onConfirm: (time: number) => void;
-  onDelete?: () => void;
-  existingTime?: number; // If provided, we're editing
-  lineColor: string;
-  isNight: boolean;
-}
-
-function WaterBrokeSheet({
-  onClose,
-  onConfirm,
-  onDelete,
-  existingTime,
-  lineColor,
-  isNight,
-}: WaterBrokeSheetProps) {
-  const isEditing = existingTime !== undefined;
-  const initialDate = isEditing ? new Date(existingTime) : new Date();
-  const [time, setTime] = useState({
-    hours: initialDate.getHours(),
-    minutes: initialDate.getMinutes(),
-  });
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  
-  const handleConfirm = () => {
-    const date = new Date();
-    date.setHours(time.hours);
-    date.setMinutes(time.minutes);
-    date.setSeconds(0);
-    onConfirm(date.getTime());
-    onClose();
-  };
-  
-  return (
-    <>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        onClick={onClose}
-        style={{
-          position: 'fixed',
-          inset: 0,
-          backgroundColor: 'rgba(0,0,0,0.5)',
-          zIndex: 100,
-        }}
-      />
-      <motion.div
-        initial={{ y: '100%' }}
-        animate={{ y: 0 }}
-        exit={{ y: '100%' }}
-        drag="y"
-        dragConstraints={{ top: 0 }}
-        dragElastic={0.2}
-        onDragEnd={(_, info) => {
-          if (info.offset.y > 100) onClose();
-        }}
-        transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-        style={{
-          position: 'fixed',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          zIndex: 101,
-          backgroundColor: isNight ? 'rgba(0, 0, 0, 0.9)' : 'rgba(255, 255, 255, 0.95)',
-          backdropFilter: 'blur(16px)',
-          WebkitBackdropFilter: 'blur(16px)',
-          borderTopLeftRadius: 20,
-          borderTopRightRadius: 20,
-        }}
-      >
-        <SheetDragHandle lineColor={lineColor} />
-        
-        {/* Header */}
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            padding: '4px 16px 12px',
-          }}
-        >
-          <button
-            onClick={onClose}
-            style={{
-              width: 32,
-              height: 32,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: `${lineColor}10`,
-              border: 'none',
-              borderRadius: '50%',
-              cursor: 'pointer',
-              color: lineColor,
-              opacity: 0.6,
-            }}
-            aria-label="Cancel"
-          >
-            <X size={16} strokeWidth={2} />
-          </button>
-          
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Droplets size={14} strokeWidth={2} color={lineColor} />
-            <span
-              style={{
-                fontFamily: 'var(--font-sans, sans-serif)',
-                fontSize: 12,
-                fontWeight: 500,
-                letterSpacing: '0.1em',
-                color: lineColor,
-              }}
-            >
-              {isEditing ? 'EDIT WATER BROKE' : 'WATER BROKE'}
-            </span>
-          </div>
-          
-          <button
-            onClick={handleConfirm}
-            style={{
-              width: 32,
-              height: 32,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: lineColor,
-              border: 'none',
-              borderRadius: '50%',
-              cursor: 'pointer',
-              color: isNight ? '#000' : '#fff',
-            }}
-            aria-label="Confirm"
-          >
-            <Check size={16} strokeWidth={2.5} />
-          </button>
-        </div>
-        
-        {/* Delete Confirmation Sheet */}
-        <AnimatePresence>
-          {showDeleteConfirm && (
-            <>
-              {/* Backdrop */}
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                onClick={() => setShowDeleteConfirm(false)}
-                style={{
-                  position: 'fixed',
-                  inset: 0,
-                  backgroundColor: 'rgba(0,0,0,0.5)',
-                  zIndex: 200,
-                }}
-              />
-              {/* Confirmation Sheet */}
-              <motion.div
-                initial={{ y: '100%' }}
-                animate={{ y: 0 }}
-                exit={{ y: '100%' }}
-                transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-                style={{
-                  position: 'fixed',
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  zIndex: 201,
-                  backgroundColor: isNight ? 'rgba(0, 0, 0, 0.95)' : 'rgba(255, 255, 255, 0.98)',
-                  backdropFilter: 'blur(16px)',
-                  WebkitBackdropFilter: 'blur(16px)',
-                  borderTopLeftRadius: 20,
-                  borderTopRightRadius: 20,
-                  padding: '12px 24px 40px',
-                }}
-              >
-                <SheetDragHandle lineColor={lineColor} />
-                
-                <div style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: 20,
-                  paddingTop: 16,
-                }}>
-                  <span
-                    style={{
-                      fontFamily: 'var(--font-sans, sans-serif)',
-                      fontSize: 12,
-                      fontWeight: 500,
-                      letterSpacing: '0.1em',
-                      color: lineColor,
-                    }}
-                  >
-                    DELETE ENTRY
-                  </span>
-                  
-                  <span
-                    style={{
-                      fontFamily: 'var(--font-serif, Georgia, serif)',
-                      fontSize: 16,
-                      fontStyle: 'italic',
-                      color: lineColor,
-                      opacity: 0.6,
-                      textAlign: 'center',
-                    }}
-                  >
-                    This action cannot be undone
-                  </span>
-                  
-                  <div style={{ display: 'flex', gap: 16, marginTop: 8 }}>
-                    <button
-                      onClick={() => setShowDeleteConfirm(false)}
-                      style={{
-                        fontFamily: 'var(--font-sans, sans-serif)',
-                        fontSize: 12,
-                        fontWeight: 500,
-                        letterSpacing: '0.08em',
-                        color: lineColor,
-                        backgroundColor: `${lineColor}10`,
-                        border: 'none',
-                        padding: '12px 24px',
-                        borderRadius: 50,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      CANCEL
-                    </button>
-                    <button
-                      onClick={() => {
-                        onDelete?.();
-                        onClose();
-                      }}
-                      style={{
-                        fontFamily: 'var(--font-sans, sans-serif)',
-                        fontSize: 12,
-                        fontWeight: 500,
-                        letterSpacing: '0.08em',
-                        color: '#fff',
-                        backgroundColor: '#e53935',
-                        border: 'none',
-                        padding: '12px 24px',
-                        borderRadius: 50,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      DELETE
-                    </button>
-                  </div>
-                </div>
-              </motion.div>
-            </>
-          )}
-        </AnimatePresence>
-        
-        {/* Content */}
-        <div style={{ 
-          padding: '24px 16px 50px',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: 24,
-        }}>
-          {/* Prompt text - only when adding */}
-          {!isEditing && (
-            <span
-              style={{
-                fontFamily: 'var(--font-serif, Georgia, serif)',
-                fontSize: 16,
-                fontStyle: 'italic',
-                color: lineColor,
-                opacity: 0.6,
-                textAlign: 'center',
-              }}
-            >
-              When did your water break?
-            </span>
-          )}
-          
-          <TimePicker
-            hours={time.hours}
-            minutes={time.minutes}
-            onChange={(hours, minutes) => setTime({ hours, minutes })}
-            color={lineColor}
-          />
-          
-          {/* Delete Button - only when editing */}
-          {isEditing && onDelete && (
-            <button
-              onClick={() => setShowDeleteConfirm(true)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                fontFamily: 'var(--font-sans, sans-serif)',
-                fontSize: 12,
-                fontWeight: 500,
-                letterSpacing: '0.08em',
-                color: '#e53935',
-                backgroundColor: 'transparent',
-                border: 'none',
-                padding: '12px 20px',
-                cursor: 'pointer',
-                opacity: 0.8,
-                marginTop: 8,
-              }}
-            >
-              <Trash2 size={14} strokeWidth={2} />
-              DELETE ENTRY
-            </button>
-          )}
-        </div>
-      </motion.div>
-    </>
-  );
-}
+// Import design system
+import {
+  fonts,
+  fontSizes,
+  fontWeights,
+  letterSpacing,
+  lineHeights,
+  spacing,
+  radii,
+  zIndex,
+  animation,
+  sizes,
+  maxWidths,
+  colors,
+  getThemeColors,
+} from '../../design';
 
 /**
  * THE WAIT Screen - Organic UI
@@ -2994,22 +129,21 @@ export function WaitScreen({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [activeTab]);
   
-  // Bottom sheet ref
-  const sheetRef = useRef<HTMLDivElement>(null);
-  
+  // Refs
   const startTimeRef = useRef<number | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const breathCycleStart = useRef<number>(0);
   
+  // Store and hooks
   const contractions = useContractionStore((s) => s.contractions);
   const { startContraction, endContraction, updateContraction, deleteContraction, addContraction, addWaterBroke, clearAll } = useContractionStore();
-  const { setPhase } = useAppStore();
   const isNight = useAppStore((s) => s.isNightTime);
   const { trigger } = useHaptics();
   
   const translations = t(locale);
-  const lineColor = isNight ? '#E8E0D5' : '#1a1a1a';
-  const bgColor = isNight ? '#000' : '#f5f5f0';
+  const theme = getThemeColors(isNight);
+  const lineColor = theme.line;
+  const bgColor = theme.bg;
   
   // Get window dimensions
   useEffect(() => {
@@ -3105,7 +239,7 @@ export function WaitScreen({
       trigger('tap');
       startContraction();
     }
-  }, [isRecording, activeTab, trigger, startContraction, endContraction, hasBegun]);
+  }, [isRecording, activeTab, trigger, startContraction, endContraction, hasBegun, pairSession]);
   
   const handleBabyArrived = useCallback(() => {
     trigger('success');
@@ -3121,25 +255,6 @@ export function WaitScreen({
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-  
-  const formatDuration = (seconds: number | null) => {
-    if (!seconds) return '—';
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    if (mins > 0) return `${mins}m ${secs}s`;
-    return `${secs}s`;
-  };
-  
-  // Calculate interval between current contraction and the one before it (chronologically)
-  // allContractions is sorted newest-first, so "previous" is at index + 1
-  const getInterval = (sortedArray: typeof contractions, index: number) => {
-    if (index >= sortedArray.length - 1) return null; // Last (oldest) item has no interval
-    const current = sortedArray[index];
-    const previous = sortedArray[index + 1]; // Previous chronologically = next in array (since newest-first)
-    // Interval = time from end of previous contraction to start of current
-    const interval = (current.startTime - (previous.endTime || previous.startTime)) / 1000 / 60;
-    return Math.round(interval * 10) / 10;
   };
   
   const getBreathText = () => {
@@ -3220,13 +335,13 @@ export function WaitScreen({
           opacity: (isHydrated && !hasBegun) || isRecording || celebrationPhase !== 'idle' ? 0 : 1, 
           y: (isHydrated && !hasBegun) || isRecording || celebrationPhase !== 'idle' ? -60 : 0 
         }}
-        transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+        transition={animation.spring.default}
         style={{
           position: 'relative',
-          zIndex: 10,
+          zIndex: zIndex.navigation,
           display: 'flex',
           justifyContent: 'center',
-          padding: '24px 24px 0',
+          padding: `${spacing[10]}px ${spacing[10]}px 0`,
           pointerEvents: (isHydrated && !hasBegun) || isRecording || celebrationPhase !== 'idle' ? 'none' : 'auto',
         }}
         role="navigation"
@@ -3236,25 +351,25 @@ export function WaitScreen({
           style={{
             display: 'flex',
             backgroundColor: lineColor,
-            borderRadius: 50,
-            padding: 2,
+            borderRadius: radii.full,
+            padding: spacing[1],
           }}
         >
           <button
             onClick={() => setActiveTab('contractions')}
             aria-pressed={activeTab === 'contractions'}
             style={{
-              fontFamily: 'var(--font-sans, sans-serif)',
-              fontSize: 12,
-              fontWeight: 500,
-              letterSpacing: '0.08em',
+              fontFamily: fonts.sans,
+              fontSize: fontSizes.button,
+              fontWeight: fontWeights.medium,
+              letterSpacing: letterSpacing.narrow,
               color: activeTab === 'contractions' ? lineColor : bgColor,
               backgroundColor: activeTab === 'contractions' ? bgColor : 'transparent',
               border: 'none',
-              padding: '12px 20px',
-              borderRadius: 50,
+              padding: `${spacing[6]}px ${spacing[9]}px`,
+              borderRadius: radii.full,
               cursor: 'pointer',
-              transition: 'all 0.3s ease',
+              transition: `all ${animation.duration.normal}s ${animation.easing.default}`,
             }}
           >
             THE WAIT
@@ -3263,20 +378,20 @@ export function WaitScreen({
             onClick={() => setActiveTab('birth')}
             aria-pressed={activeTab === 'birth'}
             style={{
-              fontFamily: 'var(--font-sans, sans-serif)',
-              fontSize: 12,
-              fontWeight: 500,
-              letterSpacing: '0.08em',
+              fontFamily: fonts.sans,
+              fontSize: fontSizes.button,
+              fontWeight: fontWeights.medium,
+              letterSpacing: letterSpacing.narrow,
               color: activeTab === 'birth' ? lineColor : bgColor,
               backgroundColor: activeTab === 'birth' ? bgColor : 'transparent',
               border: 'none',
-              padding: '12px 20px',
-              borderRadius: 50,
+              padding: `${spacing[6]}px ${spacing[9]}px`,
+              borderRadius: radii.full,
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: 6,
-              transition: 'all 0.3s ease',
+              gap: spacing[3],
+              transition: `all ${animation.duration.normal}s ${animation.easing.default}`,
             }}
           >
             BIRTH <span aria-hidden="true">→</span>
@@ -3291,15 +406,15 @@ export function WaitScreen({
           opacity: (isHydrated && !hasBegun) || isRecording || celebrationPhase !== 'idle' ? 0 : 0.5, 
         }}
         whileHover={{ opacity: 0.8 }}
-        transition={{ duration: 0.3 }}
+        transition={{ duration: animation.duration.normal }}
         onClick={() => setShowAboutSheet(true)}
         style={{
           position: 'fixed',
-          top: 28,
-          left: 20,
-          zIndex: 15,
-          width: 32,
-          height: 32,
+          top: spacing[11],
+          left: spacing[9],
+          zIndex: zIndex.helpButton,
+          width: sizes.buttonIcon,
+          height: sizes.buttonIcon,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -3311,7 +426,7 @@ export function WaitScreen({
         }}
         aria-label="About Maay"
       >
-        <CircleHelp size={20} strokeWidth={1.5} />
+        <CircleHelp size={sizes.iconLg} strokeWidth={sizes.strokeMedium} />
       </motion.button>
       
       {/* Main Interactive Area - ENTIRE SPACE CLICKABLE */}
@@ -3361,24 +476,24 @@ export function WaitScreen({
                 {isRecording ? (
                   <motion.div
                     key="recording"
-                    initial={{ opacity: 0, scale: 0.9 }}
+                    initial={{ opacity: 0, scale: animation.scale.exit }}
                     animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.9 }}
+                    exit={{ opacity: 0, scale: animation.scale.exit }}
                     style={{
                       display: 'flex',
                       flexDirection: 'column',
                       alignItems: 'center',
-                      gap: 16,
+                      gap: spacing[8],
                     }}
                   >
                     {/* Timer */}
                     <span
                       style={{
-                        fontFamily: 'var(--font-serif, Georgia, serif)',
-                        fontSize: 56,
-                        fontWeight: 300,
+                        fontFamily: fonts.serif,
+                        fontSize: fontSizes.timer,
+                        fontWeight: fontWeights.light,
                         color: lineColor,
-                        letterSpacing: '-0.02em',
+                        letterSpacing: letterSpacing.tight,
                       }}
                     >
                       {formatTime(elapsedTime)}
@@ -3387,17 +502,17 @@ export function WaitScreen({
                     {/* Breathing guidance */}
                     <motion.span
                       key={breathPhase}
-                      initial={{ opacity: 0, y: 10 }}
+                      initial={{ opacity: 0, y: spacing[5] }}
                       animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
+                      exit={{ opacity: 0, y: -spacing[5] }}
                       style={{
-                        fontFamily: 'var(--font-serif, Georgia, serif)',
-                        fontSize: 18,
-                        fontWeight: 400,
+                        fontFamily: fonts.serif,
+                        fontSize: fontSizes.large,
+                        fontWeight: fontWeights.regular,
                         fontStyle: 'italic',
                         color: lineColor,
                         opacity: 0.6,
-                        letterSpacing: '0.05em',
+                        letterSpacing: letterSpacing.compact,
                       }}
                     >
                       {getBreathText()}
@@ -3406,13 +521,13 @@ export function WaitScreen({
                     {/* Tap to end hint */}
                     <span
                       style={{
-                        fontFamily: 'var(--font-sans, sans-serif)',
-                        fontSize: 10,
-                        fontWeight: 400,
-                        letterSpacing: '0.15em',
+                        fontFamily: fonts.sans,
+                        fontSize: fontSizes.micro,
+                        fontWeight: fontWeights.regular,
+                        letterSpacing: letterSpacing.wide,
                         color: lineColor,
                         opacity: 0.5,
-                        marginTop: 24,
+                        marginTop: spacing[10],
                       }}
                     >
                       TAP TO END
@@ -3421,14 +536,14 @@ export function WaitScreen({
                 ) : (
                   <motion.span
                     key={(!isHydrated || hasBegun) ? "idle-add" : "idle-maay"}
-                    initial={{ opacity: 0, scale: 0.9 }}
+                    initial={{ opacity: 0, scale: animation.scale.exit }}
                     animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.9 }}
+                    exit={{ opacity: 0, scale: animation.scale.exit }}
                     style={{
-                      fontFamily: 'var(--font-sans, sans-serif)',
-                      fontSize: (isHydrated && !hasBegun) ? 18 : 14,
-                      fontWeight: (isHydrated && !hasBegun) ? 300 : 400,
-                      letterSpacing: '0.35em',
+                      fontFamily: fonts.sans,
+                      fontSize: (isHydrated && !hasBegun) ? fontSizes.large : fontSizes.small,
+                      fontWeight: (isHydrated && !hasBegun) ? fontWeights.light : fontWeights.regular,
+                      letterSpacing: letterSpacing.ultraWide,
                       color: lineColor,
                       opacity: (isHydrated && !hasBegun) ? 0.7 : 0.5,
                     }}
@@ -3452,22 +567,22 @@ export function WaitScreen({
               alignItems: 'center',
               justifyContent: 'center',
               position: 'relative',
-              zIndex: 5,
-              padding: 32,
-              marginTop: -40, // Offset to visually center (compensate for nav bar)
+              zIndex: zIndex.content,
+              padding: spacing[12],
+              marginTop: -spacing[13], // Offset to visually center (compensate for nav bar)
             }}
           >
             <p
               style={{
-                fontFamily: 'var(--font-serif, Georgia, serif)',
-                fontSize: 18,
+                fontFamily: fonts.serif,
+                fontSize: fontSizes.large,
                 fontStyle: 'italic',
                 color: lineColor,
                 opacity: 0.5,
                 textAlign: 'center',
-                maxWidth: 280,
-                marginBottom: 12,
-                lineHeight: 1.6,
+                maxWidth: maxWidths.content,
+                marginBottom: spacing[6],
+                lineHeight: lineHeights.normal,
               }}
             >
               This is it?
@@ -3475,19 +590,19 @@ export function WaitScreen({
             
             <motion.button
               onClick={handleBabyArrived}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+              whileHover={{ scale: animation.scale.hover }}
+              whileTap={{ scale: animation.scale.tap }}
               transition={framerSpring}
               style={{
-                fontFamily: 'var(--font-sans, sans-serif)',
-                fontSize: 12,
-                fontWeight: 600,
-                letterSpacing: '0.15em',
+                fontFamily: fonts.sans,
+                fontSize: fontSizes.button,
+                fontWeight: fontWeights.semibold,
+                letterSpacing: letterSpacing.wide,
                 color: bgColor,
                 backgroundColor: lineColor,
                 border: 'none',
-                padding: '16px 48px',
-                borderRadius: 50,
+                padding: `${spacing[8]}px ${spacing[14]}px`,
+                borderRadius: radii.full,
                 cursor: 'pointer',
               }}
             >
@@ -3510,7 +625,7 @@ export function WaitScreen({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              zIndex: 5,
+              zIndex: zIndex.content,
               pointerEvents: 'none',
             }}
           >
@@ -3518,18 +633,18 @@ export function WaitScreen({
               {celebrationPhase === 'complete' && (
                 <motion.span
                   key="life-begins"
-                  initial={{ opacity: 0, scale: 0.9 }}
+                  initial={{ opacity: 0, scale: animation.scale.exit }}
                   animate={{ opacity: 0.7, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.9 }}
-                  transition={{ duration: 0.8 }}
+                  exit={{ opacity: 0, scale: animation.scale.exit }}
+                  transition={{ duration: animation.duration.slow }}
                   style={{
-                    fontFamily: 'var(--font-sans, sans-serif)',
-                    fontSize: 18,
-                    fontWeight: 300,
-                    letterSpacing: '0.35em',
+                    fontFamily: fonts.sans,
+                    fontSize: fontSizes.large,
+                    fontWeight: fontWeights.light,
+                    letterSpacing: letterSpacing.ultraWide,
                     color: lineColor,
                     textAlign: 'center',
-                    lineHeight: 1.8,
+                    lineHeight: lineHeights.wide,
                   }}
                 >
                   L I F E
@@ -3549,32 +664,32 @@ export function WaitScreen({
             initial={{ y: '100%' }}
             animate={{ y: 0 }}
             exit={{ y: '100%', opacity: 0 }}
-            transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+            transition={animation.spring.default}
             style={{
               position: 'absolute',
               bottom: 0,
               left: 0,
               right: 0,
-              zIndex: 25,
-              padding: '40px 32px 60px',
+              zIndex: zIndex.welcomeOverlay,
+              padding: `${spacing[13]}px ${spacing[12]}px ${spacing[15]}px`,
               background: `linear-gradient(to top, ${bgColor} 0%, ${bgColor}f5 60%, ${bgColor}00 100%)`,
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              gap: 24,
+              gap: spacing[10],
             }}
           >
             {/* Tagline */}
             <div
               style={{
-                fontFamily: 'var(--font-sans, sans-serif)',
-                fontSize: 13,
-                fontWeight: 400,
-                letterSpacing: '0.1em',
+                fontFamily: fonts.sans,
+                fontSize: fontSizes.label,
+                fontWeight: fontWeights.regular,
+                letterSpacing: letterSpacing.standard,
                 color: lineColor,
                 opacity: 0.5,
                 textAlign: 'center',
-                lineHeight: 1.8,
+                lineHeight: lineHeights.wide,
                 textTransform: 'uppercase',
               }}
             >
@@ -3586,19 +701,19 @@ export function WaitScreen({
             {/* BEGIN button */}
             <motion.button
               onClick={handleBegin}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+              whileHover={{ scale: animation.scale.hover }}
+              whileTap={{ scale: animation.scale.tap }}
               style={{
-                marginTop: 8,
-                fontFamily: 'var(--font-sans, sans-serif)',
-                fontSize: 12,
-                fontWeight: 600,
-                letterSpacing: '0.15em',
+                marginTop: spacing[4],
+                fontFamily: fonts.sans,
+                fontSize: fontSizes.button,
+                fontWeight: fontWeights.semibold,
+                letterSpacing: letterSpacing.wide,
                 color: bgColor,
                 backgroundColor: lineColor,
                 border: 'none',
-                padding: '16px 48px',
-                borderRadius: 50,
+                padding: `${spacing[8]}px ${spacing[14]}px`,
+                borderRadius: radii.full,
                 cursor: 'pointer',
               }}
             >
@@ -3611,292 +726,19 @@ export function WaitScreen({
       {/* iOS-style Bottom Sheet - Contractions History (hidden during recording) */}
       <AnimatePresence>
         {activeTab === 'contractions' && !isRecording && (!isHydrated || hasBegun) && (
-          <motion.section
-            ref={sheetRef}
-            initial={{ y: '100%' }}
-            animate={{ y: 0 }}
-            exit={{ y: '100%' }}
-            drag="y"
-            dragConstraints={{ top: 0, bottom: 0 }}
-            dragElastic={0.2}
-            onDragEnd={handleSheetDragEnd}
-            transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-            style={{
-              position: 'absolute',
-              bottom: 0,
-              left: 0,
-              right: 0,
-              zIndex: 20,
-              height: allContractions.length === 0 ? '12vh' : (sheetExpanded ? '80vh' : '24vh'),
-              transition: 'height 0.3s ease-out',
-              backgroundColor: isNight ? 'rgba(30, 30, 30, 0.6)' : 'rgba(255, 255, 255, 0.6)',
-              backdropFilter: 'blur(4px)',
-              WebkitBackdropFilter: 'blur(4px)',
-              borderTopLeftRadius: 20,
-              borderTopRightRadius: 20,
-              boxShadow: `0 -4px 20px ${lineColor}15`,
-              display: 'flex',
-              flexDirection: 'column',
-            }}
-            aria-label="Contractions history"
-          >
-            <SheetDragHandle lineColor={lineColor} />
-            
-            {/* Header */}
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                padding: '4px 16px 12px',
-              }}
-            >
-              {/* 3-dot menu button */}
-              <button
-                onClick={() => setShowMenu(true)}
-                style={{
-                  width: 32,
-                  height: 32,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  background: 'transparent',
-                  border: 'none',
-                  cursor: 'pointer',
-                  color: lineColor,
-                  opacity: 0.6,
-                }}
-                aria-label="More options"
-              >
-                <MoreVertical size={16} strokeWidth={2} />
-              </button>
-              
-              <span
-                style={{
-                  fontFamily: 'var(--font-sans, sans-serif)',
-                  fontSize: 12,
-                  fontWeight: 500,
-                  letterSpacing: '0.1em',
-                  color: lineColor,
-                  opacity: allContractions.length === 0 ? 0.4 : 1,
-                }}
-              >
-                {allContractions.length === 0 ? 'NO CONTRACTIONS' : 'CONTRACTIONS'}
-              </span>
-              
-              {/* Plus button */}
-              <button
-                onClick={() => setShowAddSheet(true)}
-                style={{
-                  width: 32,
-                  height: 32,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  background: 'transparent',
-                  border: 'none',
-                  cursor: 'pointer',
-                  color: lineColor,
-                }}
-                aria-label="Add contraction"
-              >
-                <Plus size={16} strokeWidth={2.5} />
-              </button>
-            </div>
-            
-            {/* Content wrapper */}
-            <div
-              style={{
-                padding: '0px 0px 24px',
-                flex: 1,
-                display: 'flex',
-                flexDirection: 'column',
-                minHeight: 0,
-                overflow: 'hidden',
-              }}
-            >
-              {/* Header row - only show when there are entries */}
-              {allContractions.length > 0 && (
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: '1fr 1fr 1fr',
-                    flexShrink: 0,
-                  }}
-                >
-                  <div style={{ textAlign: 'center' }}>
-                    <span style={{
-                      fontFamily: 'var(--font-sans, sans-serif)',
-                      fontSize: 9,
-                      fontWeight: 500,
-                      letterSpacing: '0.1em',
-                      color: lineColor,
-                      opacity: 0.5,
-                    }}>
-                      DURATION
-                    </span>
-                  </div>
-                  <div style={{ textAlign: 'center' }}>
-                    <span style={{
-                      fontFamily: 'var(--font-sans, sans-serif)',
-                      fontSize: 9,
-                      fontWeight: 500,
-                      letterSpacing: '0.1em',
-                      color: lineColor,
-                      opacity: 0.5,
-                    }}>
-                      INTERVAL
-                    </span>
-                  </div>
-                  <div style={{ textAlign: 'center' }}>
-                    <span style={{
-                      fontFamily: 'var(--font-sans, sans-serif)',
-                      fontSize: 9,
-                      fontWeight: 500,
-                      letterSpacing: '0.1em',
-                      color: lineColor,
-                      opacity: 0.5,
-                    }}>
-                      TIME
-                    </span>
-                  </div>
-                </div>
-              )}
-              
-              {/* Data rows - tap to edit */}
-              <div
-                style={{
-                  flex: 1,
-                  overflowY: 'auto',
-                  overflowX: 'hidden',
-                }}
-              >
-                {allContractions.map((contraction, idx) => {
-                  const interval = getInterval(allContractions, idx);
-                  const startDate = new Date(contraction.startTime);
-                  const isWaterBroke = contraction.type === 'water_broke';
-                  
-                  // Special row for water broke with animated wavy border
-                  if (isWaterBroke) {
-                    return (
-                      <div
-                        key={contraction.id}
-                        onClick={() => setEditingWaterBrokeId(contraction.id)}
-                        style={{
-                          margin: '8px 12px',
-                          padding: '12px 0px',
-                          borderRadius: 12,
-                          cursor: 'pointer',
-                          background: `${lineColor}03`,
-                          position: 'relative',
-                          display: 'grid',
-                          gridTemplateColumns: '1fr 1fr 1fr',
-                          alignItems: 'center',
-                        }}
-                      >
-                        {/* Animated wavy border */}
-                        <WavyBorder 
-                          width={dimensions.width - 24} 
-                          height={52} 
-                          color={lineColor}
-                          radius={60}
-                          params={wavyParams}
-                        />
-                        
-                        {/* Icon + Label */}
-                        <div style={{ 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          justifyContent: 'center',
-                          gap: 8,
-                        }}>
-                          <Droplets size={16} strokeWidth={2} color={lineColor} style={{ opacity: 0.5 }} />
-                          <span style={{
-                            fontFamily: 'var(--font-serif, Georgia, serif)',
-                            fontSize: 14,
-                            fontWeight: 400,
-                            fontStyle: 'italic',
-                            color: lineColor,
-                            opacity: 0.6,
-                          }}>
-                            Water broke
-                          </span>
-                        </div>
-                        
-                        {/* Empty middle column for alignment */}
-                        <div />
-                        
-                        {/* Time - matching contraction row typography */}
-                        <div style={{ textAlign: 'center' }}>
-                          <span style={{
-                            fontFamily: 'var(--font-serif, Georgia, serif)',
-                            fontSize: 18,
-                            fontWeight: 300,
-                            color: lineColor,
-                            opacity: 0.5,
-                          }}>
-                            {startDate.toLocaleTimeString([], { 
-                              hour: '2-digit', 
-                              minute: '2-digit' 
-                            })}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  }
-                  
-                  // Regular contraction row
-                  return (
-                    <div
-                      key={contraction.id}
-                      onClick={() => setEditingId(contraction.id)}
-                      style={{
-                        display: 'grid',
-                        gridTemplateColumns: '1fr 1fr 1fr',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      <div style={{ padding: '14px 12px', textAlign: 'center' }}>
-                        <span style={{
-                          fontFamily: 'var(--font-serif, Georgia, serif)',
-                          fontSize: 18,
-                          fontWeight: 300,
-                          color: lineColor,
-                        }}>
-                          {formatDuration(contraction.duration)}
-                        </span>
-                      </div>
-                      <div style={{ padding: '14px 12px', textAlign: 'center' }}>
-                        <span style={{
-                          fontFamily: 'var(--font-serif, Georgia, serif)',
-                          fontSize: 18,
-                          fontWeight: 300,
-                          color: lineColor,
-                        }}>
-                          {interval ? `${interval}m` : '—'}
-                        </span>
-                      </div>
-                      <div style={{ padding: '14px 12px', textAlign: 'center' }}>
-                        <span style={{
-                          fontFamily: 'var(--font-serif, Georgia, serif)',
-                          fontSize: 18,
-                          fontWeight: 300,
-                          color: lineColor,
-                          opacity: 0.5,
-                        }}>
-                          {startDate.toLocaleTimeString([], { 
-                            hour: '2-digit', 
-                            minute: '2-digit' 
-                          })}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              
-            </div>
-          </motion.section>
+          <ContractionsHistorySheet
+            contractions={allContractions}
+            sheetExpanded={sheetExpanded}
+            onSheetDragEnd={handleSheetDragEnd}
+            onMenuOpen={() => setShowMenu(true)}
+            onAddOpen={() => setShowAddSheet(true)}
+            onEditContraction={setEditingId}
+            onEditWaterBroke={setEditingWaterBrokeId}
+            lineColor={lineColor}
+            isNight={isNight}
+            dimensions={dimensions}
+            wavyParams={wavyParams}
+          />
         )}
       </AnimatePresence>
       
@@ -4003,8 +845,8 @@ export function WaitScreen({
               if (pairSession.sessionCode) {
                 // Get the newly added contraction (it's the last one with this startTime)
                 setTimeout(() => {
-                  const contractions = useContractionStore.getState().contractions;
-                  const added = contractions.find(c => c.startTime === startTime && c.duration === duration);
+                  const currentContractions = useContractionStore.getState().contractions;
+                  const added = currentContractions.find(c => c.startTime === startTime && c.duration === duration);
                   if (added) {
                     pairSession.syncContraction({
                       id: added.id,
@@ -4032,8 +874,8 @@ export function WaitScreen({
               // Sync to Firebase if paired
               if (pairSession.sessionCode) {
                 setTimeout(() => {
-                  const contractions = useContractionStore.getState().contractions;
-                  const waterBroke = contractions.find(c => c.type === 'water_broke' && c.startTime === time);
+                  const currentContractions = useContractionStore.getState().contractions;
+                  const waterBroke = currentContractions.find(c => c.type === 'water_broke' && c.startTime === time);
                   if (waterBroke) {
                     pairSession.syncContraction({
                       id: waterBroke.id,
