@@ -30,6 +30,7 @@
   --stroke-thin: 1px;
   --stroke-normal: 1.5px;
   --stroke-thick: 2px;
+  
 }
 
 * {
@@ -242,4 +243,28 @@ input, textarea, select {
 [data-theme="night"] textarea,
 [data-theme="night"] select {
   border-color: rgba(232, 224, 213, 0.1);
+}
+
+/* iOS Safe Area Utilities for Capacitor */
+/* These use env() which works in native webviews with viewport-fit=cover */
+.safe-area-top {
+  padding-top: env(safe-area-inset-top, 0px) !important;
+}
+
+.safe-area-top-margin {
+  margin-top: env(safe-area-inset-top, 0px) !important;
+}
+
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+}
+
+/* For elements that already have some padding/margin, add safe area on top */
+.safe-area-top-extra {
+  padding-top: calc(env(safe-area-inset-top, 0px) + 20px) !important;
+}
+
+/* For fixed positioned elements that need safe area offset */
+.safe-area-fixed-top {
+  top: calc(env(safe-area-inset-top, 0px) + 24px) !important;
 }
