@@ -47,6 +47,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
+  viewportFit: 'cover', // Enable safe area support on iOS
   themeColor: [
     { media: '(prefers-color-scheme: light)', color: '#FDFBF7' },
     { media: '(prefers-color-scheme: dark)', color: '#000000' },

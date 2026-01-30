@@ -330,6 +330,7 @@ export function WaitScreen({
       
       {/* Top Navigation Pill - hides during recording, before BEGIN, and during celebration */}
       <motion.nav
+        className="safe-area-top-extra"
         initial={{ opacity: 0, y: -20 }}
         animate={{ 
           opacity: (isHydrated && !hasBegun) || isRecording || celebrationPhase !== 'idle' ? 0 : 1, 
@@ -401,6 +402,7 @@ export function WaitScreen({
       
       {/* About/Help Button - Top Left */}
       <motion.button
+        className="safe-area-fixed-top"
         initial={{ opacity: 0 }}
         animate={{ 
           opacity: (isHydrated && !hasBegun) || isRecording || celebrationPhase !== 'idle' ? 0 : 0.5, 

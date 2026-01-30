@@ -7,11 +7,17 @@
     "build": "next build",
     "start": "next start -p 8484",
     "lint": "next lint",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "ios:sync": "npx cap sync ios",
+    "ios:run": "npm run build && npx cap sync ios && npx cap run ios",
+    "ios:open": "npx cap open ios"
   },
   "dependencies": {
     "@baby/app": "*",
     "@baby/ui": "*",
+    "@capacitor/cli": "^8.0.2",
+    "@capacitor/core": "^8.0.2",
+    "@capacitor/ios": "^8.0.2",
     "@tamagui/config": "1.79.6",
     "@tanstack/react-query": "^5.14.2",
     "framer-motion": "^12.29.0",
