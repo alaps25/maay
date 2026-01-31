@@ -23,6 +23,8 @@ import {
   PairSheet,
   ExportSheet,
   AboutSheet,
+  AccidentalTapSheet,
+  AutoEndSheet,
   WavyBorderControls,
   BirthWaveControls,
 } from './components';
@@ -74,6 +76,14 @@ export function WaitScreen({
   const [showWaterBrokeSheet, setShowWaterBrokeSheet] = useState(false);
   const [showAboutSheet, setShowAboutSheet] = useState(false);
   const [showPairSheet, setShowPairSheet] = useState(false);
+  
+  // Smart UX sheets state
+  const [showAccidentalTapSheet, setShowAccidentalTapSheet] = useState(false);
+  const [showAutoEndSheet, setShowAutoEndSheet] = useState(false);
+  const [pendingEndDuration, setPendingEndDuration] = useState(0);
+  
+  // Ref for auto-end detection timeout
+  const autoEndTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Pair session for real-time sync with partner
   const pairSession = usePairSession();
@@ -187,6 +197,7 @@ export function WaitScreen({
     
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
+      if (autoEndTimeoutRef.current) clearTimeout(autoEndTimeoutRef.current);
     };
   }, [isRecording]);
   
@@ -201,6 +212,67 @@ export function WaitScreen({
     }
   }, [breathPhase, breathProgress, isRecording, trigger]);
   
+  // Threshold constants for smart UX
+  const ACCIDENTAL_TAP_THRESHOLD = 5; // seconds - if ended before this, ask if accidental
+  const AUTO_END_THRESHOLD = 120; // seconds (2 minutes) - prompt user to confirm end
+  
+  // Clear auto-end timeout when recording stops or component unmounts
+  const clearAutoEndTimeout = useCallback(() => {
+    if (autoEndTimeoutRef.current) {
+      clearTimeout(autoEndTimeoutRef.current);
+      autoEndTimeoutRef.current = null;
+    }
+  }, []);
+  
+  // Handle the actual ending of a contraction (shared logic)
+  const finalizeContraction = useCallback(() => {
+    const activeContraction = useContractionStore.getState().activeContraction;
+    endContraction();
+    
+    // Sync to Firebase if paired
+    if (activeContraction && pairSession.sessionCode) {
+      const endTime = Date.now();
+      const finalDuration = Math.round((endTime - activeContraction.startTime) / 1000);
+      pairSession.syncContraction({
+        id: activeContraction.id,
+        startTime: activeContraction.startTime,
+        duration: finalDuration,
+        type: 'contraction',
+      });
+    }
+  }, [endContraction, pairSession]);
+  
+  // Handle auto-end prompt appearance
+  const handleAutoEndPrompt = useCallback(() => {
+    if (!isRecording) return;
+    const duration = startTimeRef.current 
+      ? Math.floor((Date.now() - startTimeRef.current) / 1000) 
+      : 0;
+    setPendingEndDuration(duration);
+    setShowAutoEndSheet(true);
+  }, [isRecording]);
+  
+  // Handle continuing recording after accidental tap or auto-end prompt
+  const handleContinueRecording = useCallback(() => {
+    setShowAccidentalTapSheet(false);
+    setShowAutoEndSheet(false);
+    // Recording continues - nothing to do, state is already recording
+    // Reset auto-end timeout for another cycle
+    clearAutoEndTimeout();
+    autoEndTimeoutRef.current = setTimeout(handleAutoEndPrompt, AUTO_END_THRESHOLD * 1000);
+  }, [clearAutoEndTimeout, handleAutoEndPrompt]);
+  
+  // Handle confirming end from either sheet
+  const handleConfirmEnd = useCallback(() => {
+    setShowAccidentalTapSheet(false);
+    setShowAutoEndSheet(false);
+    clearAutoEndTimeout();
+    setIsRecording(false);
+    startTimeRef.current = null;
+    trigger('success');
+    finalizeContraction();
+  }, [clearAutoEndTimeout, trigger, finalizeContraction]);
+
   const handleRecordPress = useCallback(() => {
     if (activeTab !== 'contractions') return;
     if (!hasBegun) return; // Don't allow recording before BEGIN is clicked
@@ -211,25 +283,21 @@ export function WaitScreen({
         ? Math.floor((Date.now() - startTimeRef.current) / 1000) 
         : 0;
       
+      clearAutoEndTimeout();
+      
+      // Check for accidental tap (less than 5 seconds)
+      if (duration < ACCIDENTAL_TAP_THRESHOLD) {
+        setPendingEndDuration(duration);
+        setShowAccidentalTapSheet(true);
+        // Don't end yet - wait for user confirmation
+        return;
+      }
+      
       setIsRecording(false);
       startTimeRef.current = null;
       trigger('success');
       
-      // Get the active contraction before ending (for sync)
-      const activeContraction = useContractionStore.getState().activeContraction;
-      endContraction();
-      
-      // Sync to Firebase if paired
-      if (activeContraction && pairSession.sessionCode) {
-        const endTime = Date.now();
-        const finalDuration = Math.round((endTime - activeContraction.startTime) / 1000);
-        pairSession.syncContraction({
-          id: activeContraction.id,
-          startTime: activeContraction.startTime,
-          duration: finalDuration,
-          type: 'contraction',
-        });
-      }
+      finalizeContraction();
     } else {
       // Start recording
       setIsRecording(true);
@@ -238,8 +306,12 @@ export function WaitScreen({
       breathCycleStart.current = Date.now();
       trigger('tap');
       startContraction();
+      
+      // Set up auto-end detection timeout
+      clearAutoEndTimeout();
+      autoEndTimeoutRef.current = setTimeout(handleAutoEndPrompt, AUTO_END_THRESHOLD * 1000);
     }
-  }, [isRecording, activeTab, trigger, startContraction, endContraction, hasBegun, pairSession]);
+  }, [isRecording, activeTab, trigger, startContraction, hasBegun, clearAutoEndTimeout, finalizeContraction, handleAutoEndPrompt]);
   
   const handleBabyArrived = useCallback(() => {
     trigger('success');
@@ -913,6 +985,34 @@ export function WaitScreen({
               setEditingWaterBrokeId(null);
             }}
             existingTime={contractions.find(c => c.id === editingWaterBrokeId)?.startTime}
+            lineColor={lineColor}
+            isNight={isNight}
+          />
+        )}
+      </AnimatePresence>
+      
+      {/* Accidental Tap Sheet - shown when recording ends in <5 seconds */}
+      <AnimatePresence>
+        {showAccidentalTapSheet && (
+          <AccidentalTapSheet
+            onClose={() => setShowAccidentalTapSheet(false)}
+            onContinueRecording={handleContinueRecording}
+            onEndRecording={handleConfirmEnd}
+            elapsedSeconds={pendingEndDuration}
+            lineColor={lineColor}
+            isNight={isNight}
+          />
+        )}
+      </AnimatePresence>
+      
+      {/* Auto End Sheet - shown when recording exceeds typical duration */}
+      <AnimatePresence>
+        {showAutoEndSheet && (
+          <AutoEndSheet
+            onClose={() => setShowAutoEndSheet(false)}
+            onConfirmEnd={handleConfirmEnd}
+            onKeepRecording={handleContinueRecording}
+            elapsedSeconds={pendingEndDuration}
             lineColor={lineColor}
             isNight={isNight}
           />

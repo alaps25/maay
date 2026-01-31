@@ -93,6 +93,26 @@ export interface ExportSheetProps extends BaseSheetProps {
 export interface AboutSheetProps extends BaseSheetProps {}
 
 /**
+ * Props for AccidentalTapSheet
+ * Shown when recording ends in less than 5 seconds
+ */
+export interface AccidentalTapSheetProps extends BaseSheetProps {
+  onContinueRecording: () => void;
+  onEndRecording: () => void;
+  elapsedSeconds: number;
+}
+
+/**
+ * Props for AutoEndSheet
+ * Shown when recording exceeds typical contraction duration
+ */
+export interface AutoEndSheetProps extends BaseSheetProps {
+  onConfirmEnd: () => void;
+  onKeepRecording: () => void;
+  elapsedSeconds: number;
+}
+
+/**
  * Export count options
  */
 export type ExportCount = 10 | 20 | 50 | 'all';

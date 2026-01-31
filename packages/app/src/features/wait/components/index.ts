@@ -12,6 +12,8 @@ export {
   PairSheet,
   ExportSheet,
   AboutSheet,
+  AccidentalTapSheet,
+  AutoEndSheet,
 } from './sheets';
 
 // Debug control panels

@@ -114,6 +114,11 @@ export function AboutSheet({ onClose, lineColor, isNight }: AboutSheetProps) {
               Share your contraction history via text, copy to clipboard, or download as a file to show your midwife or doctor.
             </p>
             
+            <h3 style={sectionHeadingStyle}>SMART SAFEGUARDS</h3>
+            <p style={bodyTextStyle}>
+              If you accidentally tap to stop within 5 seconds, the app asks if you want to continue recording. If a contraction runs longer than 2 minutes, you&apos;ll be gently prompted to confirm if it ended.
+            </p>
+            
             <h3 style={sectionHeadingStyle}>BIRTH TAB</h3>
             <p style={{ ...bodyTextStyle, marginBottom: 0 }}>
               When the moment arrives, switch to the Birth tab. The calming waves continue as you prepare to welcome your baby.
