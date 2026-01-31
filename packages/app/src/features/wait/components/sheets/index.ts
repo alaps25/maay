@@ -5,3 +5,5 @@ export { MenuSheet } from './MenuSheet';
 export { PairSheet } from './PairSheet';
 export { ExportSheet } from './ExportSheet';
 export { AboutSheet } from './AboutSheet';
+export { AccidentalTapSheet } from './AccidentalTapSheet';
+export { AutoEndSheet } from './AutoEndSheet';

@@ -38,6 +38,7 @@ Contractions & Health Standards
 - **Haptic Breathing**: Rhythmic vibration patterns guide Inhale/Hold/Exhale (4-2-4 seconds)
 - **5-1-1 Medical Intelligence**: Automatic detection of the 5-1-1 pattern with care guidance card
 - **Contraction History**: Visual log with duration and intervals
+- **Smart Safeguards**: Accidental tap detection (<5s) and auto-end prompt for long recordings (>2min)
 
 ### Phase 2: THE MOMENT  
 The Birth Celebration UI
