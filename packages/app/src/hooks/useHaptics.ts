@@ -1,8 +1,15 @@
 import { useCallback, useRef, useEffect } from 'react';
 import { useAppStore } from '../stores/appStore';
 
-// Haptic patterns for breathing guidance
-export type HapticPattern = 'inhale' | 'exhale' | 'hold' | 'tap' | 'success' | 'warning';
+// Haptic patterns for breathing guidance and contraction feedback
+export type HapticPattern = 
+  | 'inhale' 
+  | 'exhale' 
+  | 'hold' 
+  | 'tap' 
+  | 'success' 
+  | 'warning'
+  | 'contractionEnd';  // Distinct calm release haptic
 
 interface UseHapticsReturn {
   // Single haptic
@@ -17,12 +24,30 @@ interface UseHapticsReturn {
   isSupported: boolean;
 }
 
+// Check if running in Capacitor native environment
+const isCapacitor = typeof window !== 'undefined' && 
+  !!(window as any).Capacitor?.isNativePlatform?.();
+
+// Lazy load Capacitor Haptics to avoid SSR issues
+let CapacitorHaptics: any = null;
+if (isCapacitor) {
+  import('@capacitor/haptics').then(module => {
+    CapacitorHaptics = module.Haptics;
+  }).catch(() => {
+    // Haptics not available
+  });
+}
+
 /**
  * useHaptics Hook
  * 
  * Provides haptic feedback for the app, with special breathing patterns
- * for contraction assistance. Uses Expo Haptics on native, falls back
- * to vibration API on web where supported.
+ * for contraction assistance. Uses Capacitor Haptics on native iOS,
+ * falls back to vibration API on web where supported.
+ * 
+ * Enhanced patterns:
+ * - Stronger, more pronounced breathing haptics (inhale/exhale)
+ * - Distinct "contractionEnd" haptic that feels like a calm release
  */
 export function useHaptics(): UseHapticsReturn {
   const settings = useAppStore((s) => s.settings);
@@ -31,35 +56,46 @@ export function useHaptics(): UseHapticsReturn {
   
   // Check if haptics are supported
   const isSupported = typeof navigator !== 'undefined' && 
-    ('vibrate' in navigator || typeof window !== 'undefined');
+    ('vibrate' in navigator || isCapacitor);
   
   // Trigger a single haptic pattern
   const trigger = useCallback((pattern: HapticPattern) => {
     if (!settings.hapticFeedback || !isSupported) return;
     
-    // Try to use Expo Haptics if available (injected at runtime on native)
+    // Try Capacitor Haptics first (iOS native)
+    if (isCapacitor && CapacitorHaptics) {
+      triggerCapacitorHaptic(pattern);
+      return;
+    }
+    
+    // Try to use Expo Haptics if available (legacy support)
     const Haptics = (globalThis as any).ExpoHaptics;
     
     if (Haptics) {
       // Native implementation using Expo Haptics
       switch (pattern) {
         case 'inhale':
-          // Gradual increase - light to medium
+          // Stronger gradual increase - more pulses
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium), 200);
-          setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy), 400);
+          setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light), 150);
+          setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium), 300);
+          setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium), 450);
+          setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy), 600);
           break;
           
         case 'exhale':
-          // Gradual decrease - heavy to light
+          // Stronger gradual decrease - more pulses
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-          setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium), 200);
-          setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light), 400);
+          setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium), 150);
+          setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium), 300);
+          setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light), 450);
+          setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light), 600);
           break;
           
         case 'hold':
-          // Subtle pulse
+          // Subtle double pulse
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light), 200);
           break;
           
         case 'tap':
@@ -73,20 +109,31 @@ export function useHaptics(): UseHapticsReturn {
         case 'warning':
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
           break;
+          
+        case 'contractionEnd':
+          // Calm release pattern: gentle fade out
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light), 200);
+          setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light), 400);
+          setTimeout(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success), 600);
+          break;
       }
     } else if (navigator.vibrate) {
-      // Web fallback using Vibration API
+      // Web fallback using Vibration API (stronger patterns)
       switch (pattern) {
         case 'inhale':
-          navigator.vibrate([50, 100, 100, 100, 150]);
+          // Stronger building pattern
+          navigator.vibrate([30, 80, 50, 80, 80, 80, 120, 80, 150]);
           break;
           
         case 'exhale':
-          navigator.vibrate([150, 100, 100, 100, 50]);
+          // Stronger releasing pattern
+          navigator.vibrate([150, 80, 120, 80, 80, 80, 50, 80, 30]);
           break;
           
         case 'hold':
-          navigator.vibrate(30);
+          // Double soft pulse
+          navigator.vibrate([30, 100, 30]);
           break;
           
         case 'tap':
@@ -100,15 +147,91 @@ export function useHaptics(): UseHapticsReturn {
         case 'warning':
           navigator.vibrate([100, 50, 100, 50, 100]);
           break;
+          
+        case 'contractionEnd':
+          // Calm release: medium followed by gentle fade
+          navigator.vibrate([80, 100, 50, 100, 30, 150, 100]);
+          break;
       }
     }
   }, [settings.hapticFeedback, isSupported]);
+
+  // Capacitor Haptics implementation for iOS native
+  // Pattern: 1-----1----1---1--1-1-1 (7 taps, sparse → dense)
+  const triggerCapacitorHaptic = async (pattern: HapticPattern) => {
+    if (!CapacitorHaptics) return;
+    
+    try {
+      switch (pattern) {
+        case 'inhale':
+          // 4 seconds, 7 taps: sparse → dense, LIGHT → MEDIUM → HEAVY (builds up)
+          // Pattern: 1-----1----1---1--1-1-1
+          await CapacitorHaptics.impact({ style: 'LIGHT' });                      // 0ms
+          setTimeout(() => CapacitorHaptics.impact({ style: 'LIGHT' }), 1250);    // +1250
+          setTimeout(() => CapacitorHaptics.impact({ style: 'MEDIUM' }), 2250);   // +1000
+          setTimeout(() => CapacitorHaptics.impact({ style: 'MEDIUM' }), 3000);   // +750
+          setTimeout(() => CapacitorHaptics.impact({ style: 'HEAVY' }), 3500);    // +500
+          setTimeout(() => CapacitorHaptics.impact({ style: 'HEAVY' }), 3750);    // +250
+          setTimeout(() => CapacitorHaptics.impact({ style: 'HEAVY' }), 3950);    // +200
+          break;
+          
+        case 'exhale':
+          // 6 seconds, 10 taps: sparse → dense, HEAVY → MEDIUM → LIGHT (releases)
+          // Pattern: 1------1-----1----1---1--1-1-1-1-1
+          await CapacitorHaptics.impact({ style: 'HEAVY' });                      // 0ms
+          setTimeout(() => CapacitorHaptics.impact({ style: 'HEAVY' }), 1500);    // +1500
+          setTimeout(() => CapacitorHaptics.impact({ style: 'HEAVY' }), 2750);    // +1250
+          setTimeout(() => CapacitorHaptics.impact({ style: 'MEDIUM' }), 3750);   // +1000
+          setTimeout(() => CapacitorHaptics.impact({ style: 'MEDIUM' }), 4500);   // +750
+          setTimeout(() => CapacitorHaptics.impact({ style: 'MEDIUM' }), 5000);   // +500
+          setTimeout(() => CapacitorHaptics.impact({ style: 'LIGHT' }), 5350);    // +350
+          setTimeout(() => CapacitorHaptics.impact({ style: 'LIGHT' }), 5600);    // +250
+          setTimeout(() => CapacitorHaptics.impact({ style: 'LIGHT' }), 5800);    // +200
+          setTimeout(() => CapacitorHaptics.impact({ style: 'LIGHT' }), 5950);    // +150
+          break;
+          
+        case 'hold':
+          // Not used - medical guidance says NO breath holding during labor
+          break;
+          
+        case 'tap':
+          await CapacitorHaptics.impact({ style: 'LIGHT' });
+          break;
+          
+        case 'success':
+          await CapacitorHaptics.notification({ type: 'SUCCESS' });
+          break;
+          
+        case 'warning':
+          await CapacitorHaptics.notification({ type: 'WARNING' });
+          break;
+          
+        case 'contractionEnd':
+          // Distinct calm release pattern - feels like letting go
+          // Medium pulse followed by gentle fade to success
+          await CapacitorHaptics.impact({ style: 'MEDIUM' });
+          setTimeout(() => CapacitorHaptics.impact({ style: 'LIGHT' }), 200);
+          setTimeout(() => CapacitorHaptics.impact({ style: 'LIGHT' }), 400);
+          setTimeout(() => CapacitorHaptics.notification({ type: 'SUCCESS' }), 600);
+          break;
+      }
+    } catch (error) {
+      // Silently fail if haptics not available
+      console.debug('Haptics not available:', error);
+    }
+  };
   
-  // Breathing sequence: 4s inhale, 2s hold, 4s exhale
+  // Breathing sequence: 4s inhale, 6s exhale (10s total)
+  // Medical standard for labor - NO breath holding per doula/Lamaze recommendations
+  // Longer exhale (6s) promotes relaxation and pelvic floor release
   const startBreathingSequence = useCallback(() => {
     if (isBreathingRef.current) return;
     
     isBreathingRef.current = true;
+    
+    const INHALE_MS = 4000;  // 4 seconds - breathe in through nose
+    const EXHALE_MS = 6000;  // 6 seconds - breathe out through mouth
+    const CYCLE_MS = INHALE_MS + EXHALE_MS; // 10 seconds total
     
     const breathCycle = () => {
       if (!isBreathingRef.current) return;
@@ -116,22 +239,16 @@ export function useHaptics(): UseHapticsReturn {
       // Inhale (4 seconds)
       trigger('inhale');
       
-      // Hold after 4 seconds (2 seconds)
-      setTimeout(() => {
-        if (!isBreathingRef.current) return;
-        trigger('hold');
-      }, 4000);
-      
-      // Exhale after 6 seconds (4 seconds)
+      // Exhale after 4 seconds (6 seconds duration)
       setTimeout(() => {
         if (!isBreathingRef.current) return;
         trigger('exhale');
-      }, 6000);
+      }, INHALE_MS);
       
       // Schedule next cycle (10 seconds total)
       breathingRef.current = setTimeout(() => {
         breathCycle();
-      }, 10000);
+      }, CYCLE_MS);
     };
     
     breathCycle();

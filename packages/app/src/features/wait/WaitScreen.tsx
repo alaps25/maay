@@ -191,7 +191,7 @@ export function WaitScreen({
     } else {
       if (timerRef.current) clearInterval(timerRef.current);
       setElapsedTime(0);
-      setBreathPhase('inhale');
+      // Don't reset breathPhase here - it triggers haptics
       setBreathProgress(0);
     }
     
@@ -201,16 +201,22 @@ export function WaitScreen({
     };
   }, [isRecording]);
   
-  // Haptic feedback on breath phase change
+  // Track which phase we already triggered haptic for (to avoid multiple triggers)
+  const lastHapticPhaseRef = useRef<BreathPhase | null>(null);
+  
+  // Haptic feedback on breath phase change - trigger ONCE per phase
   useEffect(() => {
-    if (!isRecording) return;
-    
-    if (breathPhase === 'inhale' && breathProgress < 0.05) {
-      trigger('inhale');
-    } else if (breathPhase === 'exhale' && breathProgress < 0.05) {
-      trigger('exhale');
+    if (!isRecording) {
+      lastHapticPhaseRef.current = null; // Reset when not recording
+      return;
     }
-  }, [breathPhase, breathProgress, isRecording, trigger]);
+    
+    // Only trigger if phase changed AND we haven't triggered for this phase yet
+    if (breathPhase !== lastHapticPhaseRef.current) {
+      lastHapticPhaseRef.current = breathPhase;
+      trigger(breathPhase); // 'inhale' or 'exhale'
+    }
+  }, [breathPhase, isRecording, trigger]);
   
   // Threshold constants for smart UX
   const ACCIDENTAL_TAP_THRESHOLD = 5; // seconds - if ended before this, ask if accidental
@@ -269,7 +275,7 @@ export function WaitScreen({
     clearAutoEndTimeout();
     setIsRecording(false);
     startTimeRef.current = null;
-    trigger('success');
+    trigger('contractionEnd');  // Distinct calm release haptic
     finalizeContraction();
   }, [clearAutoEndTimeout, trigger, finalizeContraction]);
 
@@ -295,7 +301,7 @@ export function WaitScreen({
       
       setIsRecording(false);
       startTimeRef.current = null;
-      trigger('success');
+      trigger('contractionEnd');  // Distinct calm release haptic
       
       finalizeContraction();
     } else {

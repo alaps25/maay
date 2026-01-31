@@ -99,6 +99,11 @@ export function AboutSheet({ onClose, lineColor, isNight }: AboutSheetProps) {
               During recording, the flowing rings and gentle prompts guide you through calming breaths. Follow the visual rhythm to help manage each wave.
             </p>
             
+            <h3 style={sectionHeadingStyle}>HAPTIC FEEDBACK</h3>
+            <p style={bodyTextStyle}>
+              On iOS, feel gentle haptic patterns that match your breathing rhythm—building during inhale, releasing during exhale. A distinct calm release haptic signals when each contraction ends.
+            </p>
+            
             <h3 style={sectionHeadingStyle}>PAIR WITH PARTNER</h3>
             <p style={bodyTextStyle}>
               Share a 6-digit code with your partner so they can follow along in real-time from their own device. Both can track contractions together.

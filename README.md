@@ -35,7 +35,7 @@ maay-monorepo/
 Contractions & Health Standards
 
 - **Aura Button**: Large, organic, pulsating button that "breathes" with the user
-- **Haptic Breathing**: Rhythmic vibration patterns guide Inhale/Hold/Exhale (4-2-4 seconds)
+- **Enhanced Haptic Feedback**: Strong haptic patterns for breathing guidance (building inhale, releasing exhale) with distinct calm release haptic when contractions end (iOS native)
 - **5-1-1 Medical Intelligence**: Automatic detection of the 5-1-1 pattern with care guidance card
 - **Contraction History**: Visual log with duration and intervals
 - **Smart Safeguards**: Accidental tap detection (<5s) and auto-end prompt for long recordings (>2min)
@@ -158,7 +158,7 @@ WHO/UNICEF compliant feeding log:
 
 ### Hooks
 - `useSyncSession` - Real-time partner synchronization
-- `useHaptics` - Platform-agnostic haptic feedback
+- `useHaptics` - Platform-agnostic haptic feedback (Capacitor Haptics for iOS native, Vibration API for web)
 
 ## Theme Configuration
 
