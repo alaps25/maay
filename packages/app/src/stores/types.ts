@@ -64,12 +64,19 @@ export interface AppSettings {
   measurementUnit: 'metric' | 'imperial';
 }
 
+// Labor Phase Detection (based on international medical standards)
+// - Early labor: contractions 5-20 min apart, 30-45 seconds
+// - Active labor: contractions 3-5 min apart, 45-60 seconds
+// - Transition: contractions 2-3 min apart, 60-90 seconds
+export type LaborPhase = 'none' | 'early' | 'active' | 'transition';
+
 // 5-1-1 Rule Analysis
 export interface ContractionPattern {
   averageInterval: number; // in minutes
   averageDuration: number; // in seconds
   consistentForMinutes: number;
   meetsFiveOneOne: boolean;
+  laborPhase: LaborPhase;
 }
 
 export interface SyncPayload {

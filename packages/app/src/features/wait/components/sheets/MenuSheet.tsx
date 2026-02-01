@@ -48,9 +48,9 @@ export function MenuSheet({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: theme.sheetBgAlt,
-    backdropFilter: blur.sheet,
-    WebkitBackdropFilter: blur.sheet,
+    backgroundColor: theme.sheetBgSubtle,
+    backdropFilter: blur.subtle,
+    WebkitBackdropFilter: blur.subtle,
     borderTopLeftRadius: radii.lg,
     borderTopRightRadius: radii.lg,
   };
@@ -125,7 +125,7 @@ export function MenuSheet({
                 style={{
                   ...sheetBaseStyle,
                   zIndex: zIndex.confirmationContent,
-                  backgroundColor: theme.sheetBg,
+                  backgroundColor: theme.sheetBgSubtle,
                   padding: `${spacing[6]}px ${spacing[10]}px ${spacing[13]}px`,
                 }}
               >

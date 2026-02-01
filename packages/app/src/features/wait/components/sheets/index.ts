@@ -7,3 +7,4 @@ export { ExportSheet } from './ExportSheet';
 export { AboutSheet } from './AboutSheet';
 export { AccidentalTapSheet } from './AccidentalTapSheet';
 export { AutoEndSheet } from './AutoEndSheet';
+export { LaborAlertSheet } from './LaborAlertSheet';
