@@ -40,6 +40,18 @@ export interface Translations {
       guidance: string;
       callToAction: string;
     };
+    laborAlerts: {
+      activeLabor: {
+        title: string;
+        subtitle: string;
+      };
+      hospitalReady: {
+        title: string;
+        subtitle: string;
+      };
+      learnMore: string;
+      learnMoreUrl: string;
+    };
   };
   
   // THE MOMENT Phase
@@ -141,6 +153,18 @@ export const translations: Record<SupportedLocale, Translations> = {
         guidance: 'This pattern often indicates active labor. Consider contacting your healthcare provider.',
         callToAction: 'Contact Provider',
       },
+      laborAlerts: {
+        activeLabor: {
+          title: 'Active Labor Pattern',
+          subtitle: 'Your contractions are following a pattern consistent with active labor—regular intervals of 3-5 minutes, lasting about 1 minute each. This is often when labor becomes more intense. Every birth is unique, so trust your body and contact your healthcare provider if you have concerns.',
+        },
+        hospitalReady: {
+          title: 'Time to Call',
+          subtitle: 'Your contractions match the 5-1-1 pattern (5 minutes apart, lasting 1 minute, for at least 1 hour). Medical guidelines suggest this is typically when to contact your hospital or midwife. If your water has broken or you feel something is wrong, call immediately.',
+        },
+        learnMore: 'WHO Labor Guidelines',
+        learnMoreUrl: 'https://www.who.int/publications/i/item/9789241550215',
+      },
     },
     moment: {
       trigger: {
@@ -233,6 +257,18 @@ export const translations: Record<SupportedLocale, Translations> = {
         criteria: '5 minutos de intervalo, durando 1 minuto, por 1 hora',
         guidance: 'Este patrón a menudo indica trabajo de parto activo. Considera contactar a tu proveedor de salud.',
         callToAction: 'Contactar Proveedor',
+      },
+      laborAlerts: {
+        activeLabor: {
+          title: 'Patrón de Parto Activo',
+          subtitle: 'Tus contracciones siguen un patrón consistente con el parto activo—intervalos regulares de 3-5 minutos, durando aproximadamente 1 minuto cada una. Esto es cuando el parto suele intensificarse. Cada nacimiento es único, confía en tu cuerpo y contacta a tu médico si tienes dudas.',
+        },
+        hospitalReady: {
+          title: 'Hora de Llamar',
+          subtitle: 'Tus contracciones coinciden con el patrón 5-1-1 (5 minutos de intervalo, durando 1 minuto, por al menos 1 hora). Las guías médicas sugieren que este es típicamente el momento de contactar al hospital o partera. Si rompiste fuente o sientes que algo está mal, llama inmediatamente.',
+        },
+        learnMore: 'Guías de Parto OMS',
+        learnMoreUrl: 'https://www.who.int/publications/i/item/9789241550215',
       },
     },
     moment: {

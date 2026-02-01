@@ -62,9 +62,9 @@ export function AddContractionSheet({
     left: 0,
     right: 0,
     zIndex: zIndex.modalContent,
-    backgroundColor: theme.sheetBgAlt,
-    backdropFilter: blur.sheet,
-    WebkitBackdropFilter: blur.sheet,
+    backgroundColor: theme.sheetBgSubtle,
+    backdropFilter: blur.subtle,
+    WebkitBackdropFilter: blur.subtle,
     borderTopLeftRadius: radii.lg,
     borderTopRightRadius: radii.lg,
   };

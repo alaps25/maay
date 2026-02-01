@@ -5,8 +5,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { CircleHelp } from 'lucide-react';
 import { OrganicWaves, type BreathPhase, type WaveParams } from '../../components/vector/OrganicWaves';
 import { CelebrationAnimation, type CelebrationPhase } from '../../components/vector/CelebrationAnimation';
-import { useContractionStore } from '../../stores/contractionStore';
-import { useAppStore } from '../../stores/appStore';
+import { useContractionStore, useContractionPattern } from '../../stores/contractionStore';
+import { useAppStore, type LaborAlertType } from '../../stores/appStore';
+import { LaborAlertSheet } from './components/sheets';
 import { useHaptics } from '../../hooks/useHaptics';
 import { usePairSession } from '../../hooks/usePairSession';
 import { framerSpring } from '../../components/vector/spring';
@@ -120,7 +121,7 @@ export function WaitScreen({
     setHasBegun(true);
   }, []);
   
-  // Key listener for wavy border controls (W key) and birth controls (B key)
+  // Key listener for wavy border controls (W key), birth controls (B key), and toast testing (L, H)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement) return;
@@ -133,6 +134,12 @@ export function WaitScreen({
       } else if (key === 'b' && activeTab === 'birth') {
         setShowBirthControls(prev => !prev);
         setShowWavyControls(false);
+      }
+      // DEV: Test labor toasts (L = Active Labor, H = Hospital Ready)
+      else if (key === 'l') {
+        setShowActiveLaborToast(prev => !prev);
+      } else if (key === 'h') {
+        setShowHospitalReadyToast(prev => !prev);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -148,7 +155,46 @@ export function WaitScreen({
   const contractions = useContractionStore((s) => s.contractions);
   const { startContraction, endContraction, updateContraction, deleteContraction, addContraction, addWaterBroke, clearAll } = useContractionStore();
   const isNight = useAppStore((s) => s.isNightTime);
+  const dismissedLaborAlerts = useAppStore((s) => s.dismissedLaborAlerts);
+  const dismissLaborAlert = useAppStore((s) => s.dismissLaborAlert);
   const { trigger } = useHaptics();
+  
+  // Labor phase detection
+  const pattern = useContractionPattern();
+  const laborPhase = pattern?.laborPhase ?? 'none';
+  const meetsFiveOneOne = pattern?.meetsFiveOneOne ?? false;
+  
+  // Track which toasts should be visible
+  const [showActiveLaborToast, setShowActiveLaborToast] = useState(false);
+  const [showHospitalReadyToast, setShowHospitalReadyToast] = useState(false);
+  
+  // Show toasts when labor phase changes (only if not dismissed)
+  // Priority: Hospital Ready > Active Labor (show only one at a time)
+  useEffect(() => {
+    // Hospital ready toast takes priority - show when 5-1-1 pattern is met
+    if (meetsFiveOneOne && !dismissedLaborAlerts.includes('hospitalReady')) {
+      setShowHospitalReadyToast(true);
+      setShowActiveLaborToast(false); // Hide active labor toast if showing hospital ready
+    }
+    // Active labor toast: show when entering active or transition phase (only if hospital ready not shown)
+    else if ((laborPhase === 'active' || laborPhase === 'transition') && 
+        !dismissedLaborAlerts.includes('activeLabor') &&
+        !dismissedLaborAlerts.includes('hospitalReady') && // Don't show if hospital ready was already dismissed
+        !meetsFiveOneOne) {
+      setShowActiveLaborToast(true);
+    }
+  }, [laborPhase, meetsFiveOneOne, dismissedLaborAlerts]);
+  
+  // Handle toast dismissal
+  const handleDismissActiveLabor = useCallback(() => {
+    setShowActiveLaborToast(false);
+    dismissLaborAlert('activeLabor');
+  }, [dismissLaborAlert]);
+  
+  const handleDismissHospitalReady = useCallback(() => {
+    setShowHospitalReadyToast(false);
+    dismissLaborAlert('hospitalReady');
+  }, [dismissLaborAlert]);
   
   const translations = t(locale);
   const theme = getThemeColors(isNight);
@@ -382,6 +428,8 @@ export function WaitScreen({
         flexDirection: 'column',
       }}
     >
+{/* Labor Alert Sheets are rendered at the end with other sheets */}
+      
       {/* Organic flowing rings with heartbeat - Press 'S' for controls, 'B' on birth tab */}
       {celebrationPhase === 'idle' ? (
         <OrganicWaves
@@ -1021,6 +1069,31 @@ export function WaitScreen({
             elapsedSeconds={pendingEndDuration}
             lineColor={lineColor}
             isNight={isNight}
+          />
+        )}
+      </AnimatePresence>
+      
+      {/* Labor Alert Sheets - shown when labor patterns detected */}
+      <AnimatePresence>
+        {showActiveLaborToast && (
+          <LaborAlertSheet
+            type="activeLabor"
+            onDismiss={handleDismissActiveLabor}
+            lineColor={lineColor}
+            isNight={isNight}
+            locale={locale}
+          />
+        )}
+      </AnimatePresence>
+      
+      <AnimatePresence>
+        {showHospitalReadyToast && (
+          <LaborAlertSheet
+            type="hospitalReady"
+            onDismiss={handleDismissHospitalReady}
+            lineColor={lineColor}
+            isNight={isNight}
+            locale={locale}
           />
         )}
       </AnimatePresence>

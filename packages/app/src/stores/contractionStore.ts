@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import type { Contraction, ContractionPattern, SyncStatus, ContractionType } from './types';
+import type { Contraction, ContractionPattern, SyncStatus, ContractionType, LaborPhase } from './types';
 
 interface ContractionState {
   // All contractions
@@ -220,11 +220,32 @@ export const useContractionStore = create<ContractionState>()(
           consistentForMinutes >= 60 &&
           contractions.length >= 6; // At least 6 contractions in an hour
         
+        // Labor phase detection based on international medical standards
+        // (WHO, NICE guidelines, ACOG recommendations)
+        let laborPhase: LaborPhase = 'none';
+        
+        // Need at least 3 contractions to establish a pattern
+        if (contractions.length >= 3) {
+          // Transition phase: 2-3 min apart, 60-90 seconds
+          if (avgInterval <= 3 && avgInterval >= 1.5 && avgDuration >= 60 && avgDuration <= 120) {
+            laborPhase = 'transition';
+          }
+          // Active labor: 3-5 min apart, 45-60+ seconds
+          else if (avgInterval <= 5 && avgInterval >= 2.5 && avgDuration >= 45) {
+            laborPhase = 'active';
+          }
+          // Early labor: 5-20 min apart, 30-45+ seconds
+          else if (avgInterval <= 20 && avgInterval >= 4 && avgDuration >= 30) {
+            laborPhase = 'early';
+          }
+        }
+        
         return {
           averageInterval: Math.round(avgInterval * 10) / 10,
           averageDuration: Math.round(avgDuration),
           consistentForMinutes: Math.round(consistentForMinutes),
           meetsFiveOneOne,
+          laborPhase,
         };
       },
       
@@ -247,3 +268,4 @@ export const useContractionStore = create<ContractionState>()(
 export const useActiveContraction = () => useContractionStore((s) => s.activeContraction);
 export const useContractionCount = () => useContractionStore((s) => s.contractions.length);
 export const useContractionPattern = () => useContractionStore((s) => s.getPattern());
+export const useLaborPhase = () => useContractionStore((s) => s.getPattern()?.laborPhase ?? 'none');

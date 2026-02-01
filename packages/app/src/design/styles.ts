@@ -24,6 +24,7 @@ import {
 
 /**
  * Base sheet container style
+ * Uses subtle translucent background matching ContractionsHistorySheet
  */
 export function getSheetStyle(isNight: boolean): CSSProperties {
   return {
@@ -31,9 +32,10 @@ export function getSheetStyle(isNight: boolean): CSSProperties {
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: isNight ? 'rgba(0, 0, 0, 0.9)' : 'rgba(255, 255, 255, 0.95)',
-    backdropFilter: blur.sheet,
-    WebkitBackdropFilter: blur.sheet,
+    // Match ContractionsHistorySheet subtle background
+    backgroundColor: isNight ? 'rgba(30, 30, 30, 0.6)' : 'rgba(255, 255, 255, 0.6)',
+    backdropFilter: blur.subtle,
+    WebkitBackdropFilter: blur.subtle,
     borderTopLeftRadius: radii.lg,
     borderTopRightRadius: radii.lg,
   };

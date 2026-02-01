@@ -124,6 +124,11 @@ export function AboutSheet({ onClose, lineColor, isNight }: AboutSheetProps) {
               If you accidentally tap to stop within 5 seconds, the app asks if you want to continue recording. If a contraction runs longer than 2 minutes, you&apos;ll be gently prompted to confirm if it ended.
             </p>
             
+            <h3 style={sectionHeadingStyle}>LABOR INTELLIGENCE</h3>
+            <p style={bodyTextStyle}>
+              The app monitors your contraction pattern and gently notifies you when you appear to be entering active labor, or when your contractions match international medical guidelines for contacting your hospital.
+            </p>
+            
             <h3 style={sectionHeadingStyle}>BIRTH TAB</h3>
             <p style={{ ...bodyTextStyle, marginBottom: 0 }}>
               When the moment arrives, switch to the Birth tab. The calming waves continue as you prepare to welcome your baby.
@@ -428,9 +433,9 @@ export function AboutSheet({ onClose, lineColor, isNight }: AboutSheetProps) {
           right: 0,
           height: viewportHeights.sheetExpanded,
           zIndex: zIndex.modalContent,
-          backgroundColor: theme.sheetBg,
-          backdropFilter: blur.sheet,
-          WebkitBackdropFilter: blur.sheet,
+          backgroundColor: theme.sheetBgSubtle,
+          backdropFilter: blur.subtle,
+          WebkitBackdropFilter: blur.subtle,
           borderTopLeftRadius: radii.lg,
           borderTopRightRadius: radii.lg,
           display: 'flex',

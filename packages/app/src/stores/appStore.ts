@@ -1,6 +1,9 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import type { AppPhase, ThemeMode, AppSettings, BabyInfo, HouseholdSync } from './types';
+import type { AppPhase, ThemeMode, AppSettings, BabyInfo, HouseholdSync, LaborPhase } from './types';
+
+// Labor alert types that can be dismissed
+export type LaborAlertType = 'activeLabor' | 'hospitalReady';
 
 interface AppState {
   // Current phase
@@ -31,6 +34,11 @@ interface AppState {
   // Night mode detection
   isNightTime: boolean;
   checkNightTime: () => void;
+  
+  // Labor alerts (dismissible toasts)
+  dismissedLaborAlerts: LaborAlertType[];
+  dismissLaborAlert: (alert: LaborAlertType) => void;
+  resetLaborAlerts: () => void;
   
   // Reset
   resetApp: () => void;
@@ -109,6 +117,16 @@ export const useAppStore = create<AppState>()(
         set({ isNightTime: isNight });
       },
       
+      // Labor alerts
+      dismissedLaborAlerts: [],
+      dismissLaborAlert: (alert) =>
+        set((state) => ({
+          dismissedLaborAlerts: state.dismissedLaborAlerts.includes(alert)
+            ? state.dismissedLaborAlerts
+            : [...state.dismissedLaborAlerts, alert],
+        })),
+      resetLaborAlerts: () => set({ dismissedLaborAlerts: [] }),
+      
       // Reset
       resetApp: () =>
         set({
@@ -118,6 +136,7 @@ export const useAppStore = create<AppState>()(
           celebrationTime: null,
           settings: defaultSettings,
           sync: defaultSync,
+          dismissedLaborAlerts: [],
         }),
     }),
     {
@@ -130,6 +149,7 @@ export const useAppStore = create<AppState>()(
         celebrationTime: state.celebrationTime,
         settings: state.settings,
         sync: state.sync,
+        dismissedLaborAlerts: state.dismissedLaborAlerts,
       }),
     }
   )
@@ -145,3 +165,4 @@ export const useTheme = () => useAppStore((state) => {
   }
   return settings.theme;
 });
+export const useDismissedLaborAlerts = () => useAppStore((state) => state.dismissedLaborAlerts);
