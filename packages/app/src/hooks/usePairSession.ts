@@ -31,7 +31,7 @@ interface UsePairSessionReturn {
   clearSession: () => Promise<void>; // Clear all session data (localStorage + Firebase)
   
   // Sync contractions to Firebase
-  syncContraction: (contraction: { id: string; startTime: number; duration: number | null; type?: 'contraction' | 'water_broke' }) => void;
+  syncContraction: (contraction: { id: string; startTime: number; duration: number | null; type?: 'contraction' | 'water_broke' | 'labor_phase_early' | 'labor_phase_active' | 'labor_phase_transition' }) => void;
   syncDeleteContraction: (id: string) => void;
   
   // Sync status
@@ -252,7 +252,7 @@ export function usePairSession(): UsePairSessionReturn {
     id: string; 
     startTime: number; 
     duration: number | null; 
-    type?: 'contraction' | 'water_broke' 
+    type?: 'contraction' | 'water_broke' | 'labor_phase_early' | 'labor_phase_active' | 'labor_phase_transition'
   }) => {
     if (!sessionCode) return;
     

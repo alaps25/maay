@@ -8,14 +8,15 @@ import {
   fonts,
   fontSizes,
   fontWeights,
+  letterSpacing,
   spacing,
+  radii,
   zIndex,
   sizes,
+  opacity,
   getThemeColors,
   // DS styles
   getSheetStyle,
-  getCancelButtonStyle,
-  getPrimaryButtonStyle,
   springTransition,
   animation,
 } from '../../../../design';
@@ -54,10 +55,18 @@ export function AutoEndSheet({
     zIndex: zIndex.modalContent,
   };
 
-  // Use DS button styles with flex layout modifications
+  // Button styles - hug content, caps text
   const cancelButtonStyle = {
-    ...getCancelButtonStyle(lineColor),
-    flex: 1,
+    fontFamily: fonts.sans,
+    fontSize: fontSizes.button,
+    fontWeight: fontWeights.medium,
+    letterSpacing: letterSpacing.narrow,
+    color: lineColor,
+    backgroundColor: `${lineColor}${opacity.subtle}`,
+    border: 'none',
+    padding: `${spacing[6]}px ${spacing[10]}px`,
+    borderRadius: radii.full,
+    cursor: 'pointer' as const,
     display: 'flex' as const,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
@@ -65,8 +74,16 @@ export function AutoEndSheet({
   };
 
   const primaryButtonStyle = {
-    ...getPrimaryButtonStyle(lineColor, isNight ? '#000' : colors.white),
-    flex: 1,
+    fontFamily: fonts.sans,
+    fontSize: fontSizes.button,
+    fontWeight: fontWeights.medium,
+    letterSpacing: letterSpacing.narrow,
+    color: isNight ? '#000' : colors.white,
+    backgroundColor: lineColor,
+    border: 'none',
+    padding: `${spacing[6]}px ${spacing[10]}px`,
+    borderRadius: radii.full,
+    cursor: 'pointer' as const,
     display: 'flex' as const,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
@@ -133,23 +150,24 @@ export function AutoEndSheet({
             </p>
           </div>
           
-          {/* Buttons - using DS styles */}
+          {/* Buttons - centered, hug content */}
           <div
             style={{
               display: 'flex',
+              justifyContent: 'center',
               gap: spacing[6],
             }}
           >
             {/* Keep Recording */}
             <button onClick={onKeepRecording} style={cancelButtonStyle}>
               <X size={sizes.iconSm} strokeWidth={sizes.strokeNormal} />
-              Keep Recording
+              KEEP RECORDING
             </button>
             
             {/* Confirm End */}
             <button onClick={onConfirmEnd} style={primaryButtonStyle}>
               <Check size={sizes.iconSm} strokeWidth={sizes.strokeThick} />
-              Confirm End
+              CONFIRM END
             </button>
           </div>
         </div>

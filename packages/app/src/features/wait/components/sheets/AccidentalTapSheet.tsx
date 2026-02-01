@@ -8,14 +8,15 @@ import {
   fonts,
   fontSizes,
   fontWeights,
+  letterSpacing,
   spacing,
+  radii,
   zIndex,
   sizes,
+  opacity,
   getThemeColors,
   // DS styles
   getSheetStyle,
-  getCancelButtonStyle,
-  getPrimaryButtonStyle,
   springTransition,
   animation,
 } from '../../../../design';
@@ -47,10 +48,18 @@ export function AccidentalTapSheet({
     zIndex: zIndex.modalContent,
   };
 
-  // Use DS button styles with flex layout modifications
+  // Button styles - hug content, caps text
   const cancelButtonStyle = {
-    ...getCancelButtonStyle(lineColor),
-    flex: 1,
+    fontFamily: fonts.sans,
+    fontSize: fontSizes.button,
+    fontWeight: fontWeights.medium,
+    letterSpacing: letterSpacing.narrow,
+    color: lineColor,
+    backgroundColor: `${lineColor}${opacity.subtle}`,
+    border: 'none',
+    padding: `${spacing[6]}px ${spacing[10]}px`,
+    borderRadius: radii.full,
+    cursor: 'pointer' as const,
     display: 'flex' as const,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
@@ -58,8 +67,16 @@ export function AccidentalTapSheet({
   };
 
   const primaryButtonStyle = {
-    ...getPrimaryButtonStyle(lineColor, isNight ? '#000' : colors.white),
-    flex: 1,
+    fontFamily: fonts.sans,
+    fontSize: fontSizes.button,
+    fontWeight: fontWeights.medium,
+    letterSpacing: letterSpacing.narrow,
+    color: isNight ? '#000' : colors.white,
+    backgroundColor: lineColor,
+    border: 'none',
+    padding: `${spacing[6]}px ${spacing[10]}px`,
+    borderRadius: radii.full,
+    cursor: 'pointer' as const,
     display: 'flex' as const,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
@@ -126,23 +143,24 @@ export function AccidentalTapSheet({
             </p>
           </div>
           
-          {/* Buttons - using DS styles */}
+          {/* Buttons - centered, hug content */}
           <div
             style={{
               display: 'flex',
+              justifyContent: 'center',
               gap: spacing[6],
             }}
           >
             {/* End Recording */}
             <button onClick={onEndRecording} style={cancelButtonStyle}>
               <X size={sizes.iconSm} strokeWidth={sizes.strokeNormal} />
-              End
+              END
             </button>
             
             {/* Continue Recording */}
             <button onClick={onContinueRecording} style={primaryButtonStyle}>
               <Play size={sizes.iconSm} strokeWidth={sizes.strokeNormal} fill="currentColor" />
-              Continue
+              CONTINUE
             </button>
           </div>
         </div>

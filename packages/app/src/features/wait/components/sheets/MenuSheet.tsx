@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Droplets, Users, ArrowUpFromLine, ListX } from 'lucide-react';
+import { Droplets, Users, ArrowUpFromLine, ListX, Activity } from 'lucide-react';
 import { SheetDragHandle } from '../SheetDragHandle';
 import type { MenuSheetProps } from '../../types';
 import {
@@ -28,6 +28,7 @@ export function MenuSheet({
   onWaterBroke,
   onExport,
   onPairPartner,
+  onLaborPhase,
   onClearAll,
   lineColor,
   isNight,
@@ -216,6 +217,20 @@ export function MenuSheet({
           alignItems: 'center',
           gap: spacing[2],
         }}>
+          {/* Labor Phase */}
+          <button
+            onClick={() => {
+              onClose();
+              onLaborPhase();
+            }}
+            style={menuItemStyle}
+          >
+            <Activity size={sizes.iconSm} strokeWidth={sizes.strokeNormal} color={lineColor} />
+            <span style={menuItemTextStyle}>
+              LABOR PHASE
+            </span>
+          </button>
+          
           {/* Water Broke */}
           <button
             onClick={() => {

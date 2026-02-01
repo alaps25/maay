@@ -5,6 +5,9 @@ import type { AppPhase, ThemeMode, AppSettings, BabyInfo, HouseholdSync, LaborPh
 // Labor alert types that can be dismissed
 export type LaborAlertType = 'activeLabor' | 'hospitalReady';
 
+// Labor phases that can be manually activated
+export type ActivatableLaborPhase = 'early' | 'active' | 'transition';
+
 interface AppState {
   // Current phase
   phase: AppPhase;
@@ -39,6 +42,11 @@ interface AppState {
   dismissedLaborAlerts: LaborAlertType[];
   dismissLaborAlert: (alert: LaborAlertType) => void;
   resetLaborAlerts: () => void;
+  
+  // Activated labor phase (user-confirmed, triggers adaptive breathing)
+  activatedLaborPhase: ActivatableLaborPhase | null;
+  activateLaborPhase: (phase: ActivatableLaborPhase) => void;
+  resetActivatedLaborPhase: () => void;
   
   // Reset
   resetApp: () => void;
@@ -127,6 +135,11 @@ export const useAppStore = create<AppState>()(
         })),
       resetLaborAlerts: () => set({ dismissedLaborAlerts: [] }),
       
+      // Activated labor phase
+      activatedLaborPhase: null,
+      activateLaborPhase: (phase) => set({ activatedLaborPhase: phase }),
+      resetActivatedLaborPhase: () => set({ activatedLaborPhase: null }),
+      
       // Reset
       resetApp: () =>
         set({
@@ -137,6 +150,7 @@ export const useAppStore = create<AppState>()(
           settings: defaultSettings,
           sync: defaultSync,
           dismissedLaborAlerts: [],
+          activatedLaborPhase: null,
         }),
     }),
     {
@@ -150,6 +164,7 @@ export const useAppStore = create<AppState>()(
         settings: state.settings,
         sync: state.sync,
         dismissedLaborAlerts: state.dismissedLaborAlerts,
+        activatedLaborPhase: state.activatedLaborPhase,
       }),
     }
   )
@@ -166,3 +181,4 @@ export const useTheme = () => useAppStore((state) => {
   return settings.theme;
 });
 export const useDismissedLaborAlerts = () => useAppStore((state) => state.dismissedLaborAlerts);
+export const useActivatedLaborPhase = () => useAppStore((state) => state.activatedLaborPhase);

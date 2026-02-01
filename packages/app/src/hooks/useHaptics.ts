@@ -11,11 +11,17 @@ export type HapticPattern =
   | 'warning'
   | 'contractionEnd';  // Distinct calm release haptic
 
+// Options for adaptive breathing haptics
+export interface BreathingHapticOptions {
+  inhaleDuration?: number;  // ms, default 4000
+  exhaleDuration?: number;  // ms, default 6000
+}
+
 interface UseHapticsReturn {
-  // Single haptic
-  trigger: (pattern: HapticPattern) => void;
+  // Single haptic with optional duration for adaptive breathing
+  trigger: (pattern: HapticPattern, options?: BreathingHapticOptions) => void;
   
-  // Breathing sequence
+  // Breathing sequence (uses default durations)
   startBreathingSequence: () => void;
   stopBreathingSequence: () => void;
   isBreathing: boolean;
@@ -58,13 +64,13 @@ export function useHaptics(): UseHapticsReturn {
   const isSupported = typeof navigator !== 'undefined' && 
     ('vibrate' in navigator || isCapacitor);
   
-  // Trigger a single haptic pattern
-  const trigger = useCallback((pattern: HapticPattern) => {
+  // Trigger a single haptic pattern with optional adaptive durations
+  const trigger = useCallback((pattern: HapticPattern, options?: BreathingHapticOptions) => {
     if (!settings.hapticFeedback || !isSupported) return;
     
     // Try Capacitor Haptics first (iOS native)
     if (isCapacitor && CapacitorHaptics) {
-      triggerCapacitorHaptic(pattern);
+      triggerCapacitorHaptic(pattern, options);
       return;
     }
     
@@ -157,37 +163,47 @@ export function useHaptics(): UseHapticsReturn {
   }, [settings.hapticFeedback, isSupported]);
 
   // Capacitor Haptics implementation for iOS native
-  // Pattern: 1-----1----1---1--1-1-1 (7 taps, sparse → dense)
-  const triggerCapacitorHaptic = async (pattern: HapticPattern) => {
+  // Supports adaptive durations - timings scale proportionally
+  const triggerCapacitorHaptic = async (pattern: HapticPattern, options?: BreathingHapticOptions) => {
     if (!CapacitorHaptics) return;
+    
+    // Default durations (can be overridden for adaptive breathing)
+    const inhaleDuration = options?.inhaleDuration ?? 4000;
+    const exhaleDuration = options?.exhaleDuration ?? 6000;
+    
+    // Scale factor for adaptive timing (1.0 = default pace)
+    const inhaleScale = inhaleDuration / 4000;
+    const exhaleScale = exhaleDuration / 6000;
     
     try {
       switch (pattern) {
         case 'inhale':
-          // 4 seconds, 7 taps: sparse → dense, LIGHT → MEDIUM → HEAVY (builds up)
+          // 7 taps: sparse → dense, LIGHT → MEDIUM → HEAVY (builds up)
+          // Timings scale with duration for slower/faster breathing
           // Pattern: 1-----1----1---1--1-1-1
-          await CapacitorHaptics.impact({ style: 'LIGHT' });                      // 0ms
-          setTimeout(() => CapacitorHaptics.impact({ style: 'LIGHT' }), 1250);    // +1250
-          setTimeout(() => CapacitorHaptics.impact({ style: 'MEDIUM' }), 2250);   // +1000
-          setTimeout(() => CapacitorHaptics.impact({ style: 'MEDIUM' }), 3000);   // +750
-          setTimeout(() => CapacitorHaptics.impact({ style: 'HEAVY' }), 3500);    // +500
-          setTimeout(() => CapacitorHaptics.impact({ style: 'HEAVY' }), 3750);    // +250
-          setTimeout(() => CapacitorHaptics.impact({ style: 'HEAVY' }), 3950);    // +200
+          await CapacitorHaptics.impact({ style: 'LIGHT' });                                           // 0ms
+          setTimeout(() => CapacitorHaptics.impact({ style: 'LIGHT' }), 1250 * inhaleScale);           // ~31%
+          setTimeout(() => CapacitorHaptics.impact({ style: 'MEDIUM' }), 2250 * inhaleScale);          // ~56%
+          setTimeout(() => CapacitorHaptics.impact({ style: 'MEDIUM' }), 3000 * inhaleScale);          // ~75%
+          setTimeout(() => CapacitorHaptics.impact({ style: 'HEAVY' }), 3500 * inhaleScale);           // ~88%
+          setTimeout(() => CapacitorHaptics.impact({ style: 'HEAVY' }), 3750 * inhaleScale);           // ~94%
+          setTimeout(() => CapacitorHaptics.impact({ style: 'HEAVY' }), inhaleDuration - 50);          // near end
           break;
           
         case 'exhale':
-          // 6 seconds, 10 taps: sparse → dense, HEAVY → MEDIUM → LIGHT (releases)
+          // 10 taps: sparse → dense, HEAVY → MEDIUM → LIGHT (releases)
+          // Timings scale with duration for slower/faster breathing
           // Pattern: 1------1-----1----1---1--1-1-1-1-1
-          await CapacitorHaptics.impact({ style: 'HEAVY' });                      // 0ms
-          setTimeout(() => CapacitorHaptics.impact({ style: 'HEAVY' }), 1500);    // +1500
-          setTimeout(() => CapacitorHaptics.impact({ style: 'HEAVY' }), 2750);    // +1250
-          setTimeout(() => CapacitorHaptics.impact({ style: 'MEDIUM' }), 3750);   // +1000
-          setTimeout(() => CapacitorHaptics.impact({ style: 'MEDIUM' }), 4500);   // +750
-          setTimeout(() => CapacitorHaptics.impact({ style: 'MEDIUM' }), 5000);   // +500
-          setTimeout(() => CapacitorHaptics.impact({ style: 'LIGHT' }), 5350);    // +350
-          setTimeout(() => CapacitorHaptics.impact({ style: 'LIGHT' }), 5600);    // +250
-          setTimeout(() => CapacitorHaptics.impact({ style: 'LIGHT' }), 5800);    // +200
-          setTimeout(() => CapacitorHaptics.impact({ style: 'LIGHT' }), 5950);    // +150
+          await CapacitorHaptics.impact({ style: 'HEAVY' });                                           // 0ms
+          setTimeout(() => CapacitorHaptics.impact({ style: 'HEAVY' }), 1500 * exhaleScale);           // ~25%
+          setTimeout(() => CapacitorHaptics.impact({ style: 'HEAVY' }), 2750 * exhaleScale);           // ~46%
+          setTimeout(() => CapacitorHaptics.impact({ style: 'MEDIUM' }), 3750 * exhaleScale);          // ~63%
+          setTimeout(() => CapacitorHaptics.impact({ style: 'MEDIUM' }), 4500 * exhaleScale);          // ~75%
+          setTimeout(() => CapacitorHaptics.impact({ style: 'MEDIUM' }), 5000 * exhaleScale);          // ~83%
+          setTimeout(() => CapacitorHaptics.impact({ style: 'LIGHT' }), 5350 * exhaleScale);           // ~89%
+          setTimeout(() => CapacitorHaptics.impact({ style: 'LIGHT' }), 5600 * exhaleScale);           // ~93%
+          setTimeout(() => CapacitorHaptics.impact({ style: 'LIGHT' }), 5800 * exhaleScale);           // ~97%
+          setTimeout(() => CapacitorHaptics.impact({ style: 'LIGHT' }), exhaleDuration - 50);          // near end
           break;
           
         case 'hold':

@@ -50,7 +50,7 @@ export interface SessionContraction {
   id: string;
   startTime: number;
   duration: number | null;
-  type?: 'contraction' | 'water_broke';
+  type?: 'contraction' | 'water_broke' | 'labor_phase_early' | 'labor_phase_active' | 'labor_phase_transition';
   addedBy: string; // device ID
   createdAt: number;
 }

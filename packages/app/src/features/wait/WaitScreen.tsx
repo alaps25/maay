@@ -7,7 +7,7 @@ import { OrganicWaves, type BreathPhase, type WaveParams } from '../../component
 import { CelebrationAnimation, type CelebrationPhase } from '../../components/vector/CelebrationAnimation';
 import { useContractionStore, useContractionPattern } from '../../stores/contractionStore';
 import { useAppStore, type LaborAlertType } from '../../stores/appStore';
-import { LaborAlertSheet } from './components/sheets';
+import { LaborAlertSheet, LaborPhaseSheet } from './components/sheets';
 import { useHaptics } from '../../hooks/useHaptics';
 import { usePairSession } from '../../hooks/usePairSession';
 import { framerSpring } from '../../components/vector/spring';
@@ -31,7 +31,7 @@ import {
 } from './components';
 
 // Import constants and types
-import { INHALE_DURATION, EXHALE_DURATION, CYCLE_DURATION, wavyBorderParams } from './constants';
+import { INHALE_DURATION, EXHALE_DURATION, CYCLE_DURATION, wavyBorderParams, getAdaptiveBreathingDurations } from './constants';
 import type { WaitScreenProps, Tab } from './types';
 
 // Import design system
@@ -77,6 +77,7 @@ export function WaitScreen({
   const [showWaterBrokeSheet, setShowWaterBrokeSheet] = useState(false);
   const [showAboutSheet, setShowAboutSheet] = useState(false);
   const [showPairSheet, setShowPairSheet] = useState(false);
+  const [showLaborPhaseSheet, setShowLaborPhaseSheet] = useState(false);
   
   // Smart UX sheets state
   const [showAccidentalTapSheet, setShowAccidentalTapSheet] = useState(false);
@@ -121,7 +122,24 @@ export function WaitScreen({
     setHasBegun(true);
   }, []);
   
-  // Key listener for wavy border controls (W key), birth controls (B key), and toast testing (L, H)
+  // Refs
+  const startTimeRef = useRef<number | null>(null);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const breathCycleStart = useRef<number>(0);
+  
+  // Store and hooks
+  const contractions = useContractionStore((s) => s.contractions);
+  const { startContraction, endContraction, updateContraction, deleteContraction, addContraction, addWaterBroke, addLaborPhaseMilestone, clearAll } = useContractionStore();
+  const isNight = useAppStore((s) => s.isNightTime);
+  const dismissedLaborAlerts = useAppStore((s) => s.dismissedLaborAlerts);
+  const dismissLaborAlert = useAppStore((s) => s.dismissLaborAlert);
+  const activatedLaborPhase = useAppStore((s) => s.activatedLaborPhase);
+  const activateLaborPhase = useAppStore((s) => s.activateLaborPhase);
+  const { trigger } = useHaptics();
+  
+  // Key listener for dev controls
+  // W = Wavy controls, B = Birth controls, L = Active Labor alert, H = Hospital Ready alert
+  // E = Force Early phase, A = Force Active phase, T = Force Transition phase
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement) return;
@@ -135,29 +153,27 @@ export function WaitScreen({
         setShowBirthControls(prev => !prev);
         setShowWavyControls(false);
       }
-      // DEV: Test labor toasts (L = Active Labor, H = Hospital Ready)
+      // DEV: Test labor alerts (L = Active Labor, H = Hospital Ready)
       else if (key === 'l') {
         setShowActiveLaborToast(prev => !prev);
       } else if (key === 'h') {
         setShowHospitalReadyToast(prev => !prev);
       }
+      // DEV: Force labor phases (E = Early, A = Active, T = Transition)
+      else if (key === 'e') {
+        activateLaborPhase('early');
+        addLaborPhaseMilestone('early');
+      } else if (key === 'a') {
+        activateLaborPhase('active');
+        addLaborPhaseMilestone('active');
+      } else if (key === 't') {
+        activateLaborPhase('transition');
+        addLaborPhaseMilestone('transition');
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeTab]);
-  
-  // Refs
-  const startTimeRef = useRef<number | null>(null);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const breathCycleStart = useRef<number>(0);
-  
-  // Store and hooks
-  const contractions = useContractionStore((s) => s.contractions);
-  const { startContraction, endContraction, updateContraction, deleteContraction, addContraction, addWaterBroke, clearAll } = useContractionStore();
-  const isNight = useAppStore((s) => s.isNightTime);
-  const dismissedLaborAlerts = useAppStore((s) => s.dismissedLaborAlerts);
-  const dismissLaborAlert = useAppStore((s) => s.dismissLaborAlert);
-  const { trigger } = useHaptics();
+  }, [activeTab, activateLaborPhase, addLaborPhaseMilestone]);
   
   // Labor phase detection
   const pattern = useContractionPattern();
@@ -167,6 +183,18 @@ export function WaitScreen({
   // Track which toasts should be visible
   const [showActiveLaborToast, setShowActiveLaborToast] = useState(false);
   const [showHospitalReadyToast, setShowHospitalReadyToast] = useState(false);
+  
+  // Track if we've already auto-activated early labor (to prevent duplicate milestones)
+  const hasAutoActivatedEarlyRef = useRef(false);
+  
+  // Auto-activate early labor silently when detected (no confirmation needed)
+  useEffect(() => {
+    if (laborPhase === 'early' && !activatedLaborPhase && !hasAutoActivatedEarlyRef.current) {
+      hasAutoActivatedEarlyRef.current = true;
+      activateLaborPhase('early');
+      addLaborPhaseMilestone('early');
+    }
+  }, [laborPhase, activatedLaborPhase, activateLaborPhase, addLaborPhaseMilestone]);
   
   // Show toasts when labor phase changes (only if not dismissed)
   // Priority: Hospital Ready > Active Labor (show only one at a time)
@@ -185,16 +213,35 @@ export function WaitScreen({
     }
   }, [laborPhase, meetsFiveOneOne, dismissedLaborAlerts]);
   
-  // Handle toast dismissal
-  const handleDismissActiveLabor = useCallback(() => {
+  // Handle labor phase activation from alerts
+  const handleActivateActiveLabor = useCallback(() => {
     setShowActiveLaborToast(false);
     dismissLaborAlert('activeLabor');
-  }, [dismissLaborAlert]);
+    activateLaborPhase('active');
+    addLaborPhaseMilestone('active');
+  }, [dismissLaborAlert, activateLaborPhase, addLaborPhaseMilestone]);
   
-  const handleDismissHospitalReady = useCallback(() => {
+  const handleActivateTransition = useCallback(() => {
     setShowHospitalReadyToast(false);
     dismissLaborAlert('hospitalReady');
-  }, [dismissLaborAlert]);
+    activateLaborPhase('transition');
+    addLaborPhaseMilestone('transition');
+  }, [dismissLaborAlert, activateLaborPhase, addLaborPhaseMilestone]);
+  
+  // Handle closing alerts without activation (just dismiss)
+  const handleCloseActiveLabor = useCallback(() => {
+    setShowActiveLaborToast(false);
+  }, []);
+  
+  const handleCloseHospitalReady = useCallback(() => {
+    setShowHospitalReadyToast(false);
+  }, []);
+  
+  // Handle manual labor phase selection from menu
+  const handleSelectLaborPhase = useCallback((phase: 'early' | 'active' | 'transition') => {
+    activateLaborPhase(phase);
+    addLaborPhaseMilestone(phase);
+  }, [activateLaborPhase, addLaborPhaseMilestone]);
   
   const translations = t(locale);
   const theme = getThemeColors(isNight);
@@ -214,7 +261,11 @@ export function WaitScreen({
     return () => window.removeEventListener('resize', updateDimensions);
   }, []);
   
-  // Timer and breathing cycle
+  // Get adaptive breathing durations based on ACTIVATED labor phase (user-confirmed)
+  // Only changes when user explicitly activates a phase via alert or menu
+  const breathingDurations = getAdaptiveBreathingDurations(activatedLaborPhase ?? 'none');
+  
+  // Timer and breathing cycle (adapts to labor intensity)
   useEffect(() => {
     if (isRecording && startTimeRef.current) {
       breathCycleStart.current = Date.now();
@@ -223,15 +274,17 @@ export function WaitScreen({
         // Update elapsed time
         setElapsedTime(Math.floor((Date.now() - startTimeRef.current!) / 1000));
         
-        // Update breathing phase (simple inhale/exhale cycle - no hold)
-        const cycleElapsed = (Date.now() - breathCycleStart.current) % CYCLE_DURATION;
+        // Update breathing phase using adaptive durations
+        // Slower breathing for more intense contractions helps with pain management
+        const { inhale, exhale, cycle } = breathingDurations;
+        const cycleElapsed = (Date.now() - breathCycleStart.current) % cycle;
         
-        if (cycleElapsed < INHALE_DURATION) {
+        if (cycleElapsed < inhale) {
           setBreathPhase('inhale');
-          setBreathProgress(cycleElapsed / INHALE_DURATION);
+          setBreathProgress(cycleElapsed / inhale);
         } else {
           setBreathPhase('exhale');
-          setBreathProgress((cycleElapsed - INHALE_DURATION) / EXHALE_DURATION);
+          setBreathProgress((cycleElapsed - inhale) / exhale);
         }
       }, 50);
     } else {
@@ -245,12 +298,13 @@ export function WaitScreen({
       if (timerRef.current) clearInterval(timerRef.current);
       if (autoEndTimeoutRef.current) clearTimeout(autoEndTimeoutRef.current);
     };
-  }, [isRecording]);
+  }, [isRecording, breathingDurations]);
   
   // Track which phase we already triggered haptic for (to avoid multiple triggers)
   const lastHapticPhaseRef = useRef<BreathPhase | null>(null);
   
   // Haptic feedback on breath phase change - trigger ONCE per phase
+  // Haptic timings adapt to match the breathing pace (slower breathing = slower haptic pattern)
   useEffect(() => {
     if (!isRecording) {
       lastHapticPhaseRef.current = null; // Reset when not recording
@@ -260,9 +314,13 @@ export function WaitScreen({
     // Only trigger if phase changed AND we haven't triggered for this phase yet
     if (breathPhase !== lastHapticPhaseRef.current) {
       lastHapticPhaseRef.current = breathPhase;
-      trigger(breathPhase); // 'inhale' or 'exhale'
+      // Pass adaptive durations so haptic pattern matches breathing pace
+      trigger(breathPhase, {
+        inhaleDuration: breathingDurations.inhale,
+        exhaleDuration: breathingDurations.exhale,
+      });
     }
-  }, [breathPhase, isRecording, trigger]);
+  }, [breathPhase, isRecording, trigger, breathingDurations]);
   
   // Threshold constants for smart UX
   const ACCIDENTAL_TAP_THRESHOLD = 5; // seconds - if ended before this, ask if accidental
@@ -923,6 +981,7 @@ export function WaitScreen({
             onWaterBroke={() => setShowWaterBrokeSheet(true)}
             onExport={() => setShowExportSheet(true)}
             onPairPartner={() => setShowPairSheet(true)}
+            onLaborPhase={() => setShowLaborPhaseSheet(true)}
             onClearAll={async () => {
               clearAll();
               // Clear Firebase session data and localStorage
@@ -1078,7 +1137,8 @@ export function WaitScreen({
         {showActiveLaborToast && (
           <LaborAlertSheet
             type="activeLabor"
-            onDismiss={handleDismissActiveLabor}
+            onActivate={handleActivateActiveLabor}
+            onClose={handleCloseActiveLabor}
             lineColor={lineColor}
             isNight={isNight}
             locale={locale}
@@ -1090,10 +1150,24 @@ export function WaitScreen({
         {showHospitalReadyToast && (
           <LaborAlertSheet
             type="hospitalReady"
-            onDismiss={handleDismissHospitalReady}
+            onActivate={handleActivateTransition}
+            onClose={handleCloseHospitalReady}
             lineColor={lineColor}
             isNight={isNight}
             locale={locale}
+          />
+        )}
+      </AnimatePresence>
+      
+      {/* Labor Phase Sheet - manual phase selection from menu */}
+      <AnimatePresence>
+        {showLaborPhaseSheet && (
+          <LaborPhaseSheet
+            onClose={() => setShowLaborPhaseSheet(false)}
+            onSelect={handleSelectLaborPhase}
+            currentPhase={activatedLaborPhase}
+            lineColor={lineColor}
+            isNight={isNight}
           />
         )}
       </AnimatePresence>
