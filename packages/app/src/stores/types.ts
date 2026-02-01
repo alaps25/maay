@@ -8,7 +8,7 @@ export type FeedingSide = 'left' | 'right' | 'bottle';
 export type DiaperType = 'wet' | 'dirty' | 'both';
 export type SyncStatus = 'synced' | 'pending' | 'offline' | 'error';
 
-export type ContractionType = 'contraction' | 'water_broke';
+export type ContractionType = 'contraction' | 'water_broke' | 'labor_phase_early' | 'labor_phase_active' | 'labor_phase_transition';
 
 export interface Contraction {
   id: string;
@@ -19,6 +19,21 @@ export interface Contraction {
   notes?: string;
   syncStatus: SyncStatus;
 }
+
+// Helper to check if a contraction type is a labor phase milestone
+export const isLaborPhaseMilestone = (type?: ContractionType): boolean => {
+  return type === 'labor_phase_early' || type === 'labor_phase_active' || type === 'labor_phase_transition';
+};
+
+// Get the display name for a labor phase milestone
+export const getLaborPhaseName = (type: ContractionType): string => {
+  switch (type) {
+    case 'labor_phase_early': return 'Early Labor';
+    case 'labor_phase_active': return 'Active Labor';
+    case 'labor_phase_transition': return 'Transition';
+    default: return '';
+  }
+};
 
 export interface FeedingSession {
   id: string;

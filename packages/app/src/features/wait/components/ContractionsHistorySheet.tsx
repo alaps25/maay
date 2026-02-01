@@ -1,10 +1,11 @@
 import React, { useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { MoreVertical, Plus, Droplets } from 'lucide-react';
+import { MoreVertical, Plus, Droplets, Sunrise, Flame, Zap } from 'lucide-react';
 import { SheetDragHandle } from './SheetDragHandle';
 import { WavyBorder } from './WavyBorder';
 import type { ContractionData } from '../types';
 import type { WavyBorderParams } from '../constants';
+import { isLaborPhaseMilestone, getLaborPhaseName } from '../../../stores/types';
 import {
   fonts,
   fontSizes,
@@ -223,6 +224,63 @@ export function ContractionsHistorySheet({
             const interval = getInterval(idx);
             const startDate = new Date(contraction.startTime);
             const isWaterBroke = contraction.type === 'water_broke';
+            const isLaborPhase = isLaborPhaseMilestone(contraction.type);
+            
+            // Get icon for labor phase milestones
+            const getLaborPhaseIcon = () => {
+              switch (contraction.type) {
+                case 'labor_phase_early': return Sunrise;
+                case 'labor_phase_active': return Flame;
+                case 'labor_phase_transition': return Zap;
+                default: return Sunrise;
+              }
+            };
+            
+            // Special row for labor phase milestones
+            if (isLaborPhase && contraction.type) {
+              const PhaseIcon = getLaborPhaseIcon();
+              const phaseName = getLaborPhaseName(contraction.type);
+              
+              return (
+                <div
+                  key={contraction.id}
+                  style={{
+                    margin: `${spacing[4]}px 0 ${spacing[4]}px ${spacing[6]}px`,
+                    padding: `${spacing[6]}px 0 ${spacing[6]}px 0`,
+                    borderRadius: radii.md,
+                    background: `${lineColor}${opacity.ghost}`,
+                    position: 'relative',
+                    display: 'grid',
+                    gridTemplateColumns: '2fr 1fr',
+                    alignItems: 'center',
+                  }}
+                >
+                  {/* Icon + Label - spans 2/3 width */}
+                  <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'flex-start',
+                    gap: spacing[4],
+                    paddingLeft: spacing[6],
+                  }}>
+                    <PhaseIcon size={sizes.iconSm} strokeWidth={sizes.strokeNormal} color={lineColor} />
+                    <span style={dataValueStyle}>
+                      {phaseName}
+                    </span>
+                  </div>
+                  
+                  {/* Time - no extra padding needed now */}
+                  <div style={{ textAlign: 'center' }}>
+                    <span style={{ ...dataValueStyle, opacity: 0.5 }}>
+                      {startDate.toLocaleTimeString([], { 
+                        hour: '2-digit', 
+                        minute: '2-digit' 
+                      })}
+                    </span>
+                  </div>
+                </div>
+              );
+            }
             
             // Special row for water broke with animated wavy border
             if (isWaterBroke) {
@@ -231,14 +289,14 @@ export function ContractionsHistorySheet({
                   key={contraction.id}
                   onClick={() => onEditWaterBroke(contraction.id)}
                   style={{
-                    margin: `${spacing[4]}px ${spacing[6]}px`,
-                    padding: `${spacing[6]}px 0px`,
+                    margin: `${spacing[4]}px ${spacing[4]}px ${spacing[4]}px ${spacing[6]}px`,
+                    padding: `${spacing[6]}px 0 ${spacing[6]}px 0`,
                     borderRadius: radii.md,
                     cursor: 'pointer',
                     background: `${lineColor}${opacity.ghost}`,
                     position: 'relative',
                     display: 'grid',
-                    gridTemplateColumns: '1fr 1fr 1fr',
+                    gridTemplateColumns: '2fr 1fr',
                     alignItems: 'center',
                   }}
                 >
@@ -251,30 +309,21 @@ export function ContractionsHistorySheet({
                     params={wavyParams}
                   />
                   
-                  {/* Icon + Label */}
+                  {/* Icon + Label - spans 2/3 width */}
                   <div style={{ 
                     display: 'flex', 
                     alignItems: 'center', 
-                    justifyContent: 'center',
+                    justifyContent: 'flex-start',
                     gap: spacing[4],
+                    paddingLeft: spacing[6],
                   }}>
-                    <Droplets size={sizes.iconSm} strokeWidth={sizes.strokeNormal} color={lineColor} style={{ opacity: 0.5 }} />
-                    <span style={{
-                      fontFamily: fonts.serif,
-                      fontSize: fontSizes.small,
-                      fontWeight: fontWeights.regular,
-                      fontStyle: 'italic',
-                      color: lineColor,
-                      opacity: 0.6,
-                    }}>
-                      Water broke
+                    <Droplets size={sizes.iconSm} strokeWidth={sizes.strokeNormal} color={lineColor} />
+                    <span style={dataValueStyle}>
+                      Water Broke
                     </span>
                   </div>
                   
-                  {/* Empty middle column for alignment */}
-                  <div />
-                  
-                  {/* Time - matching contraction row typography */}
+                  {/* Time - no extra padding needed now */}
                   <div style={{ textAlign: 'center' }}>
                     <span style={{ ...dataValueStyle, opacity: 0.5 }}>
                       {startDate.toLocaleTimeString([], { 

@@ -94,9 +94,9 @@ export function AboutSheet({ onClose, lineColor, isNight }: AboutSheetProps) {
               <strong>Tap anywhere</strong> on the screen when a contraction starts. Tap again when it ends. The app automatically calculates duration and intervals between contractions.
             </p>
             
-            <h3 style={sectionHeadingStyle}>BREATHING GUIDE</h3>
+            <h3 style={sectionHeadingStyle}>ADAPTIVE BREATHING</h3>
             <p style={bodyTextStyle}>
-              During recording, the flowing rings and gentle prompts guide you through calming breaths. Follow the visual rhythm to help manage each wave.
+              During recording, the flowing rings guide you through calming breaths. The breathing pace automatically adapts as labor progresses—normal rhythm in early labor, slower and deeper during active labor, and the slowest pace during transition to promote maximum relaxation when you need it most.
             </p>
             
             <h3 style={sectionHeadingStyle}>HAPTIC FEEDBACK</h3>

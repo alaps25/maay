@@ -35,10 +35,12 @@ maay-monorepo/
 Contractions & Health Standards
 
 - **Aura Button**: Large, organic, pulsating button that "breathes" with the user
+- **Adaptive Breathing**: Breathing guidance pace automatically adjusts based on labor phase—normal rhythm in early labor, slower during active labor, slowest during transition
 - **Enhanced Haptic Feedback**: Strong haptic patterns for breathing guidance (building inhale, releasing exhale) with distinct calm release haptic when contractions end (iOS native)
-- **Labor Intelligence**: Automatic detection of labor phases (early, active, transition) with dismissible toast notifications when entering active labor or matching hospital-ready patterns
+- **Labor Intelligence**: Automatic detection of labor phases (early, active, transition) with confirmation alerts for active labor and transition (5-1-1 pattern)
+- **Labor Phase Management**: Manual phase selection via menu, with milestone entries recorded in contractions history
 - **5-1-1 Medical Intelligence**: Automatic detection of the 5-1-1 pattern with care guidance card
-- **Contraction History**: Visual log with duration and intervals
+- **Contraction History**: Visual log with duration, intervals, and labor phase milestones
 - **Smart Safeguards**: Accidental tap detection (<5s) and auto-end prompt for long recordings (>2min)
 
 ### Phase 2: THE MOMENT  

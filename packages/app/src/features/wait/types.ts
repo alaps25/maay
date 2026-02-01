@@ -21,7 +21,7 @@ export interface ContractionData {
   startTime: number;
   duration: number | null;
   endTime?: number | null;
-  type?: 'contraction' | 'water_broke';
+  type?: 'contraction' | 'water_broke' | 'labor_phase_early' | 'labor_phase_active' | 'labor_phase_transition';
 }
 
 /**
@@ -69,6 +69,7 @@ export interface MenuSheetProps extends BaseSheetProps {
   onWaterBroke: () => void;
   onExport: () => void;
   onPairPartner: () => void;
+  onLaborPhase: () => void;
   onClearAll: () => void;
 }
 

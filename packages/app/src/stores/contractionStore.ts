@@ -15,6 +15,7 @@ interface ContractionState {
   cancelContraction: () => void;
   addContraction: (startTime: number, duration: number) => void;
   addWaterBroke: (time: number) => void;
+  addLaborPhaseMilestone: (phase: 'early' | 'active' | 'transition', time?: number) => void;
   updateContraction: (id: string, updates: { duration?: number; startTime?: number }) => void;
   deleteContraction: (id: string) => void;
   clearAll: () => void;
@@ -65,7 +66,7 @@ export const useContractionStore = create<ContractionState>()(
       },
       
       endContraction: (notes) => {
-        const { activeContraction, contractions } = get();
+        const { activeContraction } = get();
         if (!activeContraction) return;
         
         const endTime = Date.now();
@@ -79,10 +80,11 @@ export const useContractionStore = create<ContractionState>()(
           syncStatus: 'pending',
         };
         
-        set({
-          contractions: [...contractions, completedContraction],
+        // Use state callback to ensure we're appending to the latest contractions array
+        set((state) => ({
+          contractions: [...state.contractions, completedContraction],
           activeContraction: null,
-        });
+        }));
       },
       
       cancelContraction: () => {
@@ -112,6 +114,22 @@ export const useContractionStore = create<ContractionState>()(
           endTime: time,
           duration: null,
           type: 'water_broke',
+          syncStatus: 'pending',
+        };
+        set((state) => ({
+          contractions: [...state.contractions, entry],
+        }));
+      },
+      
+      addLaborPhaseMilestone: (phase, time) => {
+        const timestamp = time ?? Date.now();
+        const id = `labor_phase_${phase}_${timestamp}`;
+        const entry: Contraction = {
+          id,
+          startTime: timestamp,
+          endTime: timestamp,
+          duration: null,
+          type: `labor_phase_${phase}` as ContractionType,
           syncStatus: 'pending',
         };
         set((state) => ({
@@ -257,9 +275,18 @@ export const useContractionStore = create<ContractionState>()(
     {
       name: 'baby-contractions-storage',
       storage: getStorage(),
+      version: 2, // Increment to ensure clean storage with new type support
       partialize: (state) => ({
         contractions: state.contractions,
       }),
+      // Ensure proper merging during rehydration
+      merge: (persistedState, currentState) => {
+        const persisted = persistedState as { contractions?: Contraction[] } | undefined;
+        return {
+          ...currentState,
+          contractions: persisted?.contractions ?? currentState.contractions,
+        };
+      },
     }
   )
 );
